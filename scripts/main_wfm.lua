@@ -54,10 +54,10 @@ function main_wfm:Update()
 
 	-- fov
 	PlayerCamera.activeCamera.fieldOfView = self.settings.fieldofview
-
+	
 	if self.character.isAiming == true then
-		self.offset.curPos = Vector3(0, 0, 0)
-		self.offset.curRot = Vector3(0, 0, 0)
+		self.offset.curPos = self.offset.aim.pos
+		self.offset.curRot = self.offset.aim.rot
 	else
 		self.offset.curPos = self.offset.idle.pos
 		self.offset.curRot = self.offset.idle.rot
@@ -120,6 +120,11 @@ function main_wfm:setup()
 
 		idle = {
 			pos = Vector3(-0.065, -0.025, -0.055),
+			rot = Vector3(0, 0, 2),
+		},
+
+		aim = {
+			pos = Vector3(0, 0, -0.076),
 			rot = Vector3(0, 0, 2),
 		}
 	}
@@ -247,7 +252,7 @@ end
 
 -- CHECK FUNCTIONS
 --[[
-restrictions
+restrictions for slow walking
 ]]
 function main_wfm:restrictWhenSlowWalk()
 	if tostring(self.character.stance) ~= "Stand" then
