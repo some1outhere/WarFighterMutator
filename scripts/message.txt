@@ -1,0 +1,596 @@
+-- Register the behaviour
+behaviour("MyKMCS")
+
+local currentHeldString = ""
+local currentHeldNumber = 0
+
+local fieldOfView = 95
+local workWithSecondaryAndPrimaryOnly = true
+
+local autoStanceAfterKnock = true
+local hadFalloverBefore = false
+local commitActionTilFinish = false
+local keepSavingStance = true
+local beforeStance = "Stand"
+
+local canAimZoom = false
+local canseedriver = true
+
+local inCarbefore = false
+
+local canFreelook = true
+local startFreelook = false
+local isFreelooking = false
+local freelookOffset = Vector3(0, 0, 0)
+
+local canCanted = true
+local haveOverhead = true
+local cantedState = 0
+local cantedMousewheelMethod = true
+local weapCanCanted = true
+
+local canPushback = true
+local pushbackDistance = 0.8
+local pushback = 0
+
+local canTilt = true
+local movementTiltMultiplier = 1
+local movementTilt = 0
+
+local canBreathe = true
+local breathingTimer = 0
+local breathingSpeed = 0.5
+local breathingAmount = 0.002
+local breathingOffsetPos = Vector2(0, 0)
+
+local tacticalPosition = true
+local tacticalStance = 0
+local weapCanTactStance = true
+
+local canDeadzone = true
+local canDeadzoneAim = true
+local deadzoneLimit = 5
+local deadzoneMultiplier = 4
+local deadzoneOffsetRot = Vector2(0, 0)
+local prevDeadzoneOffset = Vector2(0, 0)
+
+local canCustomSway = true
+local swayOffsetRot = Vector2(0, 0)
+local swaySpeed = 25
+local swayMultiplier = 3.5
+
+local defaultOffsetPos = Vector3(0, 0, 0)
+local defaultOffsetRot = Vector3(0, 0, 0)
+
+local customIdle = true -- AFFECTED BY CONFIG
+local offsets = {
+	idle = {
+		Vector3(-0.02, -0.05, 0),
+		Vector3(0, 0, 0)
+	},
+
+	canted = {
+		Vector3(-0.05, -0.1, 0),
+		Vector3(0, 0, 35)
+	},
+
+	overtop = {
+		Vector3(0.05, 0.21, -0.2),
+		Vector3(0, 0, 55)
+	},
+
+	highready = {
+		Vector3(0.02, -0.45, -0.2),
+		Vector3(-50, 0, 0)
+	},
+
+	lowready = {
+		Vector3(-0.02, -0.2, 0),
+		Vector3(15, 0, 0)
+	}
+}
+
+function MyKMCS:Start()
+	-- Run when behaviour is created
+	print("Activated KMCS")
+	
+	-- add configs
+	local mutator = self.script.mutator
+	fieldOfView = mutator.GetConfigurationInt("fovcustom")
+	workWithSecondaryAndPrimaryOnly = mutator.GetConfigurationBool("workwithprimaryandsecondaryonly")
+	autoStanceAfterKnock = mutator.GetConfigurationBool("returntostance")
+	canseedrive = mutator.GetConfigurationBool("canseedrive")
+	canFreelook = mutator.GetConfigurationBool("canfreelook")
+	canBreathe = mutator.GetConfigurationBool("breatheidleanimation")
+	canTilt = mutator.GetConfigurationBool("movementtilt")
+	canDeadzone = mutator.GetConfigurationBool("enabledeadzone")
+	canDeadzoneAim = mutator.GetConfigurationBool("enableaimdeadzone")
+	customIdle = mutator.GetConfigurationBool("customidle")
+	canCanted = mutator.GetConfigurationBool("allowcantedaim")
+	haveOverhead = mutator.GetConfigurationBool("cantedoverhead")
+	tacticalPosition = mutator.GetConfigurationBool("cantacticalposition")
+	cantedMousewheelMethod = mutator.GetConfigurationBool("cantedmousewheelmethod")
+
+	pushbackDistance = mutator.GetConfigurationFloat("cantuckdistance")
+	breathingSpeed = mutator.GetConfigurationFloat("breathingspeed")
+	breathingAmount = mutator.GetConfigurationFloat("breathingamount")
+	movementTiltMultiplier = mutator.GetConfigurationFloat("movementtiltmultiplier")
+	deadzoneLimit = mutator.GetConfigurationFloat("deadzonelimit")
+	deadzoneMultiplier = mutator.GetConfigurationFloat("deadzonemultiplier")
+	
+	offsets.idle[1] = Vector3(mutator.GetConfigurationFloat("idlepx"), mutator.GetConfigurationFloat("idlepy"), mutator.GetConfigurationFloat("idlepz"))
+    offsets.idle[2] = Vector3(mutator.GetConfigurationFloat("idlerx"), mutator.GetConfigurationFloat("idlery"), mutator.GetConfigurationFloat("idlerz"))
+
+	offsets.canted[1] = Vector3(mutator.GetConfigurationFloat("cantedpx"), mutator.GetConfigurationFloat("cantedpy"), mutator.GetConfigurationFloat("cantedpz"))
+    offsets.canted[2] = Vector3(mutator.GetConfigurationFloat("cantedrx"), mutator.GetConfigurationFloat("cantedry"), mutator.GetConfigurationFloat("cantedrz"))
+
+	offsets.overtop[1] = Vector3(mutator.GetConfigurationFloat("overheadpx"), mutator.GetConfigurationFloat("overheadpy"), mutator.GetConfigurationFloat("overheadpz"))
+    offsets.overtop[2] = Vector3(mutator.GetConfigurationFloat("overheadrx"), mutator.GetConfigurationFloat("overheadry"), mutator.GetConfigurationFloat("overheadrz"))
+	
+	offsets.highready[1] = Vector3(mutator.GetConfigurationFloat("highpx"), mutator.GetConfigurationFloat("highpy"), mutator.GetConfigurationFloat("highpz"))
+    offsets.highready[2] = Vector3(mutator.GetConfigurationFloat("highrx"), mutator.GetConfigurationFloat("highry"), mutator.GetConfigurationFloat("highrz"))
+	
+	offsets.lowready[1] = Vector3(mutator.GetConfigurationFloat("lowpx"), mutator.GetConfigurationFloat("lowpy"), mutator.GetConfigurationFloat("lowpz"))
+    offsets.lowready[2] = Vector3(mutator.GetConfigurationFloat("lowrx"), mutator.GetConfigurationFloat("lowry"), mutator.GetConfigurationFloat("lowrz"))
+	
+	-- add listen
+	GameEvents.onActorSpawn.AddListener(self, "Spawn")
+
+	-- set
+	if customIdle == true then
+		defaultOffsetPos = offsets.idle[1]
+		defaultOffsetRot = offsets.idle[2]
+	end
+end
+
+function MyKMCS:Update()
+	-- Run every frame
+	if Player.actor.isDead == true then return end
+
+	-- bleh
+	self:HandleBodyStance()
+
+	if self:HandleVehicle(true) == false then return end
+
+	local weapon = Player.actor.activeWeapon
+	local parent = weapon.transform.parent
+	local swayOffset = parent.transform.parent
+
+	-- positions
+	local pushbackOffset = Vector3(0, 0, pushback)
+	local breathingOffset = Vector3(breathingOffsetPos.x, breathingOffsetPos.y, 0)
+
+	-- rotations
+	local defaultRot = Quaternion.Euler(defaultOffsetRot)
+	local moveTiltOffset = Quaternion.Euler(Vector3(0, 0, movementTilt))
+
+	local deadzOffsetRot = Quaternion.Euler(Vector3(deadzoneOffsetRot.x, deadzoneOffsetRot.y, 0))
+	local swayOffsetRot = Quaternion.Euler(Vector3(swayOffsetRot.y, 0, -swayOffsetRot.x))
+	
+	-- final n stuff
+	local posOffset = defaultOffsetPos + pushbackOffset + breathingOffset
+	local rotOffset = defaultRot * moveTiltOffset
+
+	local finalizedPos = Vector3.Lerp(parent.transform.localPosition, posOffset, Time.deltaTime * 12)
+	local finalizedRot = Quaternion.Slerp(parent.transform.localRotation, rotOffset, Time.deltaTime * 12)
+	
+	parent.transform.localPosition = finalizedPos
+	parent.transform.localRotation = finalizedRot
+
+	-- handle deadzone/custom sway n shit
+	if canCustomSway == true or canDeadzone == true then
+		swayOffset.transform.localRotation = Quaternion.Slerp(swayOffset.transform.localRotation, deadzOffsetRot * swayOffsetRot, Time.deltaTime * 12)
+	end
+	
+	-- fire functions
+	self:WeaponPosition()
+	self:WeaponPhysics()
+	self:UserInputs()
+	self:HandleFreelooking()
+end
+
+function MyKMCS:LateUpdate()
+	if Player.actor.isDead == true then return end
+	if self:HandleVehicle(false) == false then return end
+
+	-- run this
+	self:HandleWeapon()
+end
+
+-- CHARACTER FUNCTIONALITY
+function MyKMCS:Spawn(actor)
+	-- Check if Player 
+	if actor.isPlayer == true then
+		-- set
+		local mutator = self.script.mutator
+		self.canAimExceptions = self:ParseWeaponString(mutator.GetConfigurationString("canaimeexceptions"))
+		self.canCantedExeceptions = self:ParseWeaponString(mutator.GetConfigurationString("cancantedexeceptions"))
+
+		-- reset
+		currentHeldString = ""
+		beforeStance = "Stand"
+		tacticalStance = 0
+		cantedState = 0
+	end
+	
+	-- handle who can use parachutes
+	if self.script.mutator.GetConfigurationBool("canuseparachute") == true then
+		actor.canDeployParachute = false
+
+		if self.script.mutator.GetConfigurationDropdown("whocanuseparachute") == 0 then
+			actor.canDeployParachute = true
+		elseif self.script.mutator.GetConfigurationDropdown("whocanuseparachute") == 1 and tostring(actor.team) == "Blue" then
+			actor.canDeployParachute = true
+		elseif self.script.mutator.GetConfigurationDropdown("whocanuseparachute") == 2 and tostring(actor.team) == "Red" then
+			actor.canDeployParachute = true
+		end
+	else
+		actor.canDeployParachute = false
+	end
+end
+
+-- SECONDARY FUNCTIONALITY
+
+function MyKMCS:HandleBodyStance()
+	if autoStanceAfterKnock == true then
+		if commitActionTilFinish == true then
+			keepSavingStance = false
+
+			if tostring(Player.actor.stance) == "Stand" and tostring(beforeStance) ~= "Stand" then
+				Player.actor.ForceStance(beforeStance)
+			else
+				commitActionTilFinish = false
+				keepSavingStance = true
+			end
+		end
+
+		if Player.actor.isFallenOver == true then
+			hadFalloverBefore = true
+		else
+			if hadFalloverBefore == true then
+				hadFalloverBefore = false
+				commitActionTilFinish = true
+			else
+				if keepSavingStance == true then
+					beforeStance = Player.actor.stance
+				end
+			end
+		end
+	end
+end
+
+function MyKMCS:HandleWeapon()
+
+	-- do checks first obviously lmao
+	if Player.actor.activeWeapon == nil then return end
+	local weapon = Player.actor.activeWeapon
+
+	if currentHeldString ~= weapon.weaponEntry.name or currentHeldNumber ~= weapon.slot then
+		currentHeldString = weapon.weaponEntry.name
+		currentHeldNumber = weapon.slot
+
+		print(weapon.weaponEntry.name)
+		print(weapon.slot)
+		
+		if weapon.transform.parent.name ~= "KANZ_OFFSET_SHIT" then
+			print("created offsets")
+			print(weapon.weaponEntry.name)
+			print(Player.actor.activeWeapon.gameObject.name)
+
+			local offset = GameObject("KANZ_OFFSET_SHIT")
+			
+			offset.transform.parent = weapon.transform.parent
+			offset.transform.rotation = weapon.transform.rotation
+			offset.transform.position = weapon.transform.position
+			weapon.transform.parent = offset.transform
+
+			offset.transform.parent = weapon.transform.parent
+			weapon.transform.rotation = offset.transform.rotation
+			weapon.transform.position = offset.transform.position
+			weapon.transform.parent = offset.transform
+
+			local swayOffset = GameObject("SWAYOFFSET_KANZ")
+			swayOffset.transform.parent = offset.transform.parent
+			swayOffset.transform.rotation = offset.transform.rotation
+			swayOffset.transform.position = offset.transform.position
+			offset.transform.parent = swayOffset.transform
+		else
+			print("found that it has offsets already")
+		end
+	end
+
+	if workWithSecondaryAndPrimaryOnly == true then
+		local weapon = Player.actor.activeWeapon
+
+		if weapon.slot == 0 or weapon.slot == 1 then
+			weapCanCanted = true
+			weapCanTactStance = true
+		else
+			weapCanCanted = false
+			weapCanTactStance = false
+		end
+	end
+end
+
+function MyKMCS:WeaponPosition()
+
+	-- handle zoom
+	if canAimZoom == true then
+		if Player.actor.isAiming == false then
+			PlayerCamera.activeCamera.fieldOfView = fieldOfView
+		end
+	else
+		if not self:FindStringInTable(Player.actor.activeWeapon.weaponEntry.name, self.canAimExceptions) then
+			PlayerCamera.activeCamera.fieldOfView = fieldOfView
+		else
+			if Player.actor.isAiming == false then
+				PlayerCamera.activeCamera.fieldOfView = fieldOfView
+			end
+		end
+	end
+
+	-- handle aim position
+	if Player.actor.isAiming == true then
+		if canCanted == true and weapCanCanted == true then
+			if self:FindStringInTable(Player.actor.activeWeapon.weaponEntry.name, self.canCantedExeceptions) == false then
+				if cantedState == 1 then
+					defaultOffsetPos = offsets.overtop[1]
+					defaultOffsetRot = offsets.overtop[2]
+				elseif cantedState == -1 then
+					defaultOffsetPos = offsets.canted[1]
+					defaultOffsetRot = offsets.canted[2]
+				else
+					defaultOffsetPos = Vector3(0, 0, 0)
+					defaultOffsetRot = Vector3(0, 0, 0)
+				end
+			else
+				defaultOffsetPos = Vector3(0, 0, 0)
+				defaultOffsetRot = Vector3(0, 0, 0)
+			end
+		else
+			defaultOffsetPos = Vector3(0, 0, 0)
+		end
+	else
+		if tacticalPosition == true and weapCanTactStance == true then
+			if tacticalStance == 1 then
+				defaultOffsetPos = offsets.highready[1]
+				defaultOffsetRot = offsets.highready[2]
+			elseif tacticalStance == -1 then
+				defaultOffsetPos = offsets.lowready[1]
+				defaultOffsetRot = offsets.lowready[2]
+			else
+				if customIdle == true then
+					defaultOffsetPos = offsets.idle[1]
+					defaultOffsetRot = offsets.idle[2]
+				else
+					defaultOffsetPos = Vector3(0, 0, 0)
+					defaultOffsetRot = Vector3(0, 0, 0)
+				end
+			end
+		else
+			if customIdle == true then
+				defaultOffsetPos = offsets.idle[1]
+				defaultOffsetRot = offsets.idle[2]
+			else
+				defaultOffsetPos = Vector3(0, 0, 0)
+				defaultOffsetRot = Vector3(0, 0, 0)
+			end
+		end
+	end
+end
+
+function MyKMCS:WeaponPhysics()
+
+	if canTilt == true then
+		local vel = Player.actor.velocity
+		local right = PlayerCamera.activeCamera.transform.right
+		local lateralSpeed = Vector3.Dot(vel, -right)
+		
+		movementTilt = lateralSpeed * movementTiltMultiplier
+	end
+
+	if canBreathe == true then
+		local calculationy = math.sin(breathingTimer * breathingSpeed) * breathingAmount
+		local calculationx = math.cos(breathingTimer * breathingSpeed) * breathingAmount
+			
+		breathingTimer = breathingTimer + Time.deltaTime
+		breathingOffsetPos = Vector2(calculationx, calculationy)
+	end
+
+	if canDeadzone == true and isFreelooking == false then
+		local input = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
+
+		if canDeadzoneAim == true then
+			deadzoneOffsetRot = deadzoneOffsetRot + Vector2(-input.y * deadzoneMultiplier, input.x * deadzoneMultiplier)
+		else
+			if Player.actor.isAiming == false then
+				deadzoneOffsetRot = deadzoneOffsetRot + Vector2(-input.y * deadzoneMultiplier, input.x * deadzoneMultiplier)
+			else
+				deadzoneOffsetRot = Vector2(0, 0)
+			end	
+		end
+
+		if deadzoneOffsetRot.magnitude > deadzoneLimit then
+			deadzoneOffsetRot = prevDeadzoneOffset
+		else
+			prevDeadzoneOffset = deadzoneOffsetRot
+		end
+	end
+	
+	if canCustomSway == true and isFreelooking == false then
+		local input = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
+		swayOffsetRot = swayOffsetRot + Vector2(input.x * swayMultiplier, input.y * swayMultiplier)
+		swayOffsetRot = Vector2.Lerp(swayOffsetRot, Vector2(0, 0), Time.deltaTime * swaySpeed)
+	end
+
+	-- let's make sure this isn't a player
+	-- before we actually move back our weapon
+	if canPushback == true then
+		local distance = pushbackDistance
+		local target = RaycastTarget.ProjectileHit
+		local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
+		local hit = Physics.Raycast(ray, distance, target)
+
+		if hit then
+			if hit.collider.gameObject.GetComponentInParent(Actor) == nil or hit.collider.gameObject.GetComponentInParent(Actor).isBot then
+				pushback = hit.distance - distance
+			end
+		else
+			pushback = 0
+		end
+	end
+end
+
+function MyKMCS:UserInputs()
+	if self:MouseScroll() == 1 then
+		if cantedMousewheelMethod == true and Player.actor.isAiming == true then
+			cantedState = cantedState + 1
+
+			if haveOverhead == false then
+				cantedState = 0
+			end
+		end
+
+		if tacticalPosition == true and Player.actor.isAiming == false then
+			tacticalStance = tacticalStance + 1
+		end
+	elseif self:MouseScroll() == -1 then
+		if cantedMousewheelMethod == true and Player.actor.isAiming == true then
+			cantedState = cantedState - 1
+		end
+
+		if tacticalPosition == true and Player.actor.isAiming == false then
+			tacticalStance = tacticalStance - 1
+		end
+	end
+
+	if  cantedMousewheelMethod == false then
+		if Input.GetKeyDown(KeyCode.T) then
+			if cantedState == -1 then
+				cantedState = 0
+			elseif cantedState == 0 or cantedState == 1 then
+				cantedState = -1
+			end
+		end
+
+		if Input.GetKeyDown(KeyCode.Y) and haveOverhead == true then
+			if cantedState == 1 then
+				cantedState = 0
+			elseif cantedState == 0 or cantedState == -1 then
+				cantedState = 1
+			end
+		end
+	end
+	
+	if canFreelook == true then
+		if Input.GetKeyDown(KeyCode.LeftAlt) then
+			startFreelook = true
+		end
+
+		if Input.GetKeyUp(KeyCode.LeftAlt) then
+			startFreelook = false
+		end
+	end
+
+	if cantedState > 1 then
+		cantedState = 1
+	elseif cantedState < -1 then
+		cantedState = -1
+	end
+
+	if tacticalStance > 1 then
+		tacticalStance = 1
+	elseif tacticalStance < -1 then
+		tacticalStance = -1
+	end
+end
+
+function MyKMCS:HandleFreelooking()
+	if canFreelook == false then return end
+
+	if startFreelook == true then
+		isFreelooking = true
+		
+		Player.actor.activeWeapon.transform.parent.rotation = freelookOffset
+	else
+		if isFreelooking == true then
+			isFreelooking = false
+		else
+			freelookOffset = Player.actor.activeWeapon.transform.rotation
+		end
+	end
+end
+
+-- UTILITIES
+
+function MyKMCS:MouseScroll()
+	local scroll = Input.GetAxis("Mouse ScrollWheel")
+	if scroll > 0 then
+		return 1
+	elseif scroll < 0 then
+		return -1
+	end
+end
+
+function MyKMCS:HandleVehicle(customFunctions)
+	if Player.actor.activeSeat or Player.actor.isDriver then
+
+		-- basically shows off the player body when in a vehicle for realism purposes
+		if customFunctions == true and Player.actor.isDriver and not Player.actor.activeWeapon then
+
+			if not canZoom then
+				PlayerCamera.activeCamera.fieldOfView = fieldOfView
+			end
+
+			-- handle the can see body system
+			if canseedriver then
+				if PlayerCamera.isUsingFPCamera then
+					Player.actor.SetHumanoidBoneScale(HumanBodyBones.Head, 0)
+				else
+					Player.actor.SetHumanoidBoneScale(HumanBodyBones.Head, 1)
+				end
+
+				Player.SetThirdPersonRenderMode()
+				inCarbefore = true
+			end
+		end
+		
+		-- check if were on a machine gun so that we can just turn everything off
+		if Player.actor.activeWeapon and Player.actor.activeWeapon.slot == -1 then
+			return false
+		end
+	end
+	
+	if not Player.actor.activeWeapon then
+		return false
+	else
+		-- resets everything back to default
+		if customFunctions == true and canseedriver == true and inCarbefore == true then
+			if PlayerCamera.isUsingFPCamera then
+				Player.SetFirstPersonRenderMode()
+				Player.actor.SetHumanoidBoneScale(HumanBodyBones.Head, 1)
+				inCarbefore = false
+			end
+		end
+	end
+
+	return true
+end
+
+function MyKMCS:FindStringInTable(name, tbl)
+    for i, v in ipairs(tbl) do
+		if name == v then
+			return true
+		end
+	end
+
+	return false
+end
+
+function MyKMCS:ParseWeaponString(weaponString)
+    local weapons = {}
+    for weaponName in weaponString:gmatch("[^;]+") do
+        table.insert(weapons, weaponName:match("^%s*(.-)%s*$")) -- trim whitespace
+    end
+    return weapons
+end
