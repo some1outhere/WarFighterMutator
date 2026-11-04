@@ -45,14 +45,62 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mutators:
   - name: WFM - Main Larpator
-    description: this is what makes it work
-    menuImage: {fileID: 0}
+    description: the Main War Fighter Mutator
+    menuImage: {fileID: 2800000, guid: 45d13d77dbfbe5a40b6d3ad3a4045113, type: 3}
     mutatorPrefab: {fileID: 8455939411186431968, guid: da035b630495bbc4db09ced8b751bab1, type: 3}
     configuration:
       labels: []
-      integers: []
-      floats: []
+      integers:
+      - id: default_fov
+        displayName: Field of View
+        orderPriority: 0
+        value: 100
+      - id: arma_zoom_cutback
+        displayName: arma aim zoom
+        orderPriority: 11
+        value: 55
+      floats:
+      - id: slow_walk_speed
+        displayName: slow walk speed
+        orderPriority: 2
+        value: 0.6
+      - id: sway_multiplier
+        displayName: sway multiplier
+        orderPriority: 5
+        value: 3.5
+      - id: deadzone_multiplier
+        displayName: deadzone multiplier
+        orderPriority: 7
+        value: 3
+      - id: deadzone_limit
+        displayName: deadzone limit
+        orderPriority: 8
+        value: 15
       ranges: []
-      strings: []
-      bools: []
+      strings:
+      - id: ban_ocz_aimming
+        displayName: Forbids Overhead, Canted and zoom
+        orderPriority: 3
+        value: SL-DEFENDER; RECON LRR
+      bools:
+      - id: can_slow_walk
+        displayName: can slow walk (alt)
+        orderPriority: 1
+        value: 1
+      - id: can_sway
+        displayName: can sway
+        orderPriority: 4
+        value: 1
+      - id: can_deadzone
+        displayName: can deadzone
+        orderPriority: 6
+        value: 1
+      - id: ignore_deadzone_aim
+        displayName: ignore deadzone aim
+        orderPriority: 9
+        value: 0
+      - id: arma_aim
+        displayName: arma aim style
+        orderPriority: 10
+        value: 1
       dropdowns: []
