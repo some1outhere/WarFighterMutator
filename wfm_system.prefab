@@ -49,7 +49,40 @@ MonoBehaviour:
     menuImage: {fileID: 2800000, guid: 45d13d77dbfbe5a40b6d3ad3a4045113, type: 3}
     mutatorPrefab: {fileID: 8455939411186431968, guid: da035b630495bbc4db09ced8b751bab1, type: 3}
     configuration:
-      labels: []
+      labels:
+      - id: 14thdisplay_idle_offset_pos
+        displayName: IDLE OFFSET POSITION
+        orderPriority: 14
+      - id: 18thdisplay_idle_offset_rot
+        displayName: IDLE OFFSET ROTATION
+        orderPriority: 18
+      - id: 22nddisplay_aim_offset_pos
+        displayName: AIM OFFSET POSITION
+        orderPriority: 22
+      - id: 26nddisplay_aim_offset_rot
+        displayName: AIM OFFSET ROTATION
+        orderPriority: 26
+      - id: 30rddisplay_canted_offset_pos
+        displayName: CANTED OFFSET POSITION
+        orderPriority: 30
+      - id: 34thdisplay_canted_offset_rot
+        displayName: CANTED OFFSET ROTATION
+        orderPriority: 34
+      - id: 38rddisplay_overhead_offset_pos
+        displayName: OVERHEAD OFFSET POSITION
+        orderPriority: 38
+      - id: 42nddisplay_overhead_offset_rot
+        displayName: OVERHEAD OFFSET ROTATION
+        orderPriority: 42
+      - id: 46nddisplay_sprint_offset_pos
+        displayName: SPRINT OFFSET POSITION
+        orderPriority: 46
+      - id: 50display_sprint_offset_rot
+        displayName: SPRINT OFFSET ROTATION
+        orderPriority: 50
+      - id: 54display_keycodes
+        displayName: INPUTS
+        orderPriority: 54
       integers:
       - id: default_fov
         displayName: Field of View
@@ -57,31 +90,171 @@ MonoBehaviour:
         value: 100
       - id: arma_zoom_cutback
         displayName: arma aim zoom
-        orderPriority: 11
+        orderPriority: 12
         value: 55
       floats:
-      - id: slow_walk_speed
-        displayName: slow walk speed
-        orderPriority: 2
-        value: 0.6
       - id: sway_multiplier
         displayName: sway multiplier
         orderPriority: 5
         value: 3.5
+      - id: slow_walk_speed
+        displayName: slow walk speed
+        orderPriority: 2
+        value: 0.6
       - id: deadzone_multiplier
         displayName: deadzone multiplier
-        orderPriority: 7
+        orderPriority: 8
         value: 3
       - id: deadzone_limit
         displayName: deadzone limit
-        orderPriority: 8
-        value: 15
+        orderPriority: 9
+        value: 25
+      - id: aim_deadzone_limit
+        displayName: aim deadzone limit
+        orderPriority: 10
+        value: 8
+      - id: x_idle_pos
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 15
+        value: -0.065
+      - id: y_idle_pos
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 16
+        value: -0.025
+      - id: z_idle_pos
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 17
+        value: -0.055
+      - id: x_idle_rot
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 19
+        value: 0
+      - id: y_idle_rot
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 20
+        value: 0
+      - id: z_idle_rot
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 21
+        value: 2
+      - id: x_aim_pos
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 23
+        value: 0
+      - id: y_aim_pos
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 24
+        value: 0
+      - id: z_aim_pos
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 25
+        value: -0.076
+      - id: x_aim_rot
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 27
+        value: 0
+      - id: y_aim_rot
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 28
+        value: 0
+      - id: z_aim_rot
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 29
+        value: 0
+      - id: x_canted_pos
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 31
+        value: 0
+      - id: y_canted_pos
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 32
+        value: -0.1
+      - id: z_canted_pos
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 33
+        value: 0
+      - id: x_canted_rot
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 35
+        value: 0
+      - id: y_canted_rot
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 36
+        value: 0
+      - id: z_canted_rot
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 37
+        value: 35
+      - id: x_overhead_pos
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 39
+        value: 0.05
+      - id: y_overhead_pos
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 40
+        value: 0.21
+      - id: z_overhead_pos
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 41
+        value: -0.2
+      - id: x_overhead_rot
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 43
+        value: 0
+      - id: y_overhead_rot
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 44
+        value: 0
+      - id: z_overhead_rot
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 45
+        value: 55
+      - id: x_sprint_pos
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 47
+        value: 0.25
+      - id: y_sprint_pos
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 48
+        value: 0
+      - id: z_sprint_pos
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 49
+        value: -0.076
+      - id: x_sprint_rot
+        displayName: <color=#ff0000>X</color>
+        orderPriority: 51
+        value: 0
+      - id: y_sprint_rot
+        displayName: <color=#00ff00>Y</color>
+        orderPriority: 52
+        value: -6
+      - id: z_sprint_rot
+        displayName: <color=#0000ff>Z</color>
+        orderPriority: 53
+        value: 2
       ranges: []
       strings:
       - id: ban_ocz_aimming
         displayName: Forbids Overhead, Canted and zoom
         orderPriority: 3
         value: SL-DEFENDER; RECON LRR
+      - id: overhead_input
+        displayName: Overhead Input
+        orderPriority: 55
+        value: Y
+      - id: canted_input
+        displayName: Overhead Input
+        orderPriority: 56
+        value: H
+      - id: arma_zoom
+        displayName: Arma Zoom
+        orderPriority: 56
+        value: T
+      - id: walk_alt
+        displayName: Walk Alt
+        orderPriority: 57
+        value: LeftAlt
       bools:
       - id: can_slow_walk
         displayName: can slow walk (alt)
@@ -95,12 +268,12 @@ MonoBehaviour:
         displayName: can deadzone
         orderPriority: 6
         value: 1
-      - id: ignore_deadzone_aim
-        displayName: ignore deadzone aim
-        orderPriority: 9
-        value: 0
+      - id: can_deadzone_aim
+        displayName: can deadzone while aiming
+        orderPriority: 7
+        value: 1
       - id: arma_aim
         displayName: arma aim style
-        orderPriority: 10
+        orderPriority: 11
         value: 1
       dropdowns: []

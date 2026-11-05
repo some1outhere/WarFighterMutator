@@ -89,7 +89,7 @@ function main_wfm:Update()
 	end
 	
 	-- arma style aimming
-	if self.settings.arma_aim == true and Input.GetKeyDown(KeyCode.T) then
+	if self.settings.arma_aim == true and Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("arma_zoom")]) then
 		self.settings.arma_enabled_aim = not self.settings.arma_enabled_aim
 	end
 
@@ -181,16 +181,26 @@ function main_wfm:LateUpdate()
 	
 	-- deadzone shit
 	if self.settings.can_deadzone == true then
-		if self.character.isAiming == true and self.settings.sec_aim_var == 0 and self.settings.ignore_deadzone_aim == false then
+		if self.character.isAiming == true and self.settings.can_deadzone_aim == false then
 			self.offset.deadzone = Vector2(0, 0)
 		else
 			self.offset.deadzone = self.offset.deadzone + Vector2(-input.y * self.settings.deadzone_multiplier, input.x * self.settings.deadzone_multiplier)
 		end
 
+		if self.settings.can_deadzone_aim == true and self.settings.can_deadzone_aim == true then
+			if self.offset.deadzone.magnitude <= self.settings.aim_deadzone_limit then
+				self.offset.prevAimDeadzoneOffset = self.offset.deadzone
+			else
+				if self.character.isAiming == true then
+					self.offset.deadzone = self.offset.prevAimDeadzoneOffset
+				end
+			end
+		end
+
 		if self.offset.deadzone.magnitude > self.settings.deadzone_limit then
-			self.offset.deadzone = prevDeadzoneOffset
+			self.offset.deadzone = self.offset.prevDeadzoneOffset
 		else
-			prevDeadzoneOffset = self.offset.deadzone
+			self.offset.prevDeadzoneOffset = self.offset.deadzone
 		end
 	end
 
@@ -251,8 +261,9 @@ function main_wfm:setup()
 
 		can_deadzone = true,
 		deadzone_multiplier = 3,
-		deadzone_limit = 15,
-		ignore_deadzone_aim = false,
+		deadzone_limit = 25,
+		aim_deadzone_limit = 8,
+		can_deadzone_aim = false,
 
 		arma_aim = true,
 		arma_enabled_aim = false,
@@ -275,7 +286,7 @@ function main_wfm:setup()
 			},
 
 			pos = Vector3(0.25, 0, -0.076),
-			rot = Vector3(0, -45, 2),
+			rot = Vector3(0, -6, 2),
 		},
 
 		bobbing = {
@@ -309,8 +320,9 @@ function main_wfm:setup()
 		},
 
 		deadzone = Vector2(0, 0),
-		sway = Vector2(0, 0),
 		prevDeadzoneOffset = Vector2(0, 0),
+		prevAimDeadzoneOffset = Vector2(0, 0),
+		sway = Vector2(0, 0),
 	}
 
 	self.offset.curPos = self.offset.idle.pos
@@ -319,23 +331,7 @@ function main_wfm:setup()
 	currentHeldString = ""
 	currentHeldNumber = 67
 
-	-- update
-	self.settings.default_fieldofview = self.script.mutator.GetConfigurationInt("default_fov")
-	self.settings.ban_ocz_aimming = self:parseWeaponString(self.script.mutator.GetConfigurationString("ban_ocz_aimming"))
-
-	self.settings.can_slow_walk = self.script.mutator.GetConfigurationBool("can_slow_walk")
-	self.settings.slow_walk_speed = self.script.mutator.GetConfigurationFloat("slow_walk_speed")
-
-	self.settings.can_sway = self.script.mutator.GetConfigurationBool("can_sway")
-	self.settings.sway_multiplier = self.script.mutator.GetConfigurationFloat("sway_multiplier")
-
-	self.settings.can_deadzone = self.script.mutator.GetConfigurationBool("can_deadzone")
-	self.settings.deadzone_multiplier = self.script.mutator.GetConfigurationFloat("deadzone_multiplier")
-	self.settings.deadzone_limit = self.script.mutator.GetConfigurationFloat("deadzone_limit")
-	self.settings.ignore_deadzone_aim = self.script.mutator.GetConfigurationBool("ignore_deadzone_aim")
-
-	self.settings.arma_aim = self.script.mutator.GetConfigurationBool("arma_aim")
-	self.settings.arma_zoom_cutback = self.script.mutator.GetConfigurationInt("arma_zoom_cutback")
+	self:setConfiguration()
 end
 
 --[[
@@ -384,7 +380,7 @@ function main_wfm:slowWalk()
 		end
 
 		-- main shit
-		if not Input:GetKeyDown(KeyCode.LeftAlt) then
+		if not Input:GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("walk_alt")]) then
 			return
 		end
 				
@@ -442,7 +438,7 @@ end
 handles canted/overhead aimming
 ]]
 function main_wfm:secAim()
-	if Input.GetKeyDown(KeyCode.Y) then
+	if Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("overhead_input")]) then
 		if self.settings.sec_aim_var ==  1 then
 			self.settings.sec_aim_var = 0
 		else
@@ -450,13 +446,96 @@ function main_wfm:secAim()
 		end
 	end
 	
-	if Input.GetKeyDown(KeyCode.H) then
+	if Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("canted_input")]) then
 		if self.settings.sec_aim_var == -1 then
 			self.settings.sec_aim_var = 0
 		else
 			self.settings.sec_aim_var = -1
 		end
 	end
+end
+
+--[[
+in it's name, i'm just fucking lazy
+]]
+function main_wfm:setConfiguration()
+	self.settings.default_fieldofview = self.script.mutator.GetConfigurationInt("default_fov")
+	self.settings.ban_ocz_aimming = self:parseWeaponString(self.script.mutator.GetConfigurationString("ban_ocz_aimming"))
+
+	self.settings.can_slow_walk = self.script.mutator.GetConfigurationBool("can_slow_walk")
+	self.settings.slow_walk_speed = self.script.mutator.GetConfigurationFloat("slow_walk_speed")
+
+	self.settings.can_sway = self.script.mutator.GetConfigurationBool("can_sway")
+	self.settings.sway_multiplier = self.script.mutator.GetConfigurationFloat("sway_multiplier")
+
+	self.settings.can_deadzone = self.script.mutator.GetConfigurationBool("can_deadzone")
+	self.settings.can_deadzone_aim = self.script.mutator.GetConfigurationBool("can_deadzone_aim")
+	self.settings.deadzone_multiplier = self.script.mutator.GetConfigurationFloat("deadzone_multiplier")
+	self.settings.deadzone_limit = self.script.mutator.GetConfigurationFloat("deadzone_limit")
+	self.settings.aim_deadzone_limit = self.script.mutator.GetConfigurationFloat("aim_deadzone_limit")	
+
+	self.settings.arma_aim = self.script.mutator.GetConfigurationBool("arma_aim")
+	self.settings.arma_zoom_cutback = self.script.mutator.GetConfigurationInt("arma_zoom_cutback")
+	
+	self.offset.idle.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_idle_pos"),
+		self.script.mutator.GetConfigurationFloat("y_idle_pos"),
+		self.script.mutator.GetConfigurationFloat("z_idle_pos")
+	)
+
+	self.offset.idle.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_idle_rot"),
+		self.script.mutator.GetConfigurationFloat("y_idle_rot"),
+		self.script.mutator.GetConfigurationFloat("z_idle_rot")
+	)
+
+	self.offset.aim.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_aim_pos"),
+		self.script.mutator.GetConfigurationFloat("y_aim_pos"),
+		self.script.mutator.GetConfigurationFloat("z_aim_pos")
+	)
+
+	self.offset.aim.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_aim_rot"),
+		self.script.mutator.GetConfigurationFloat("y_aim_rot"),
+		self.script.mutator.GetConfigurationFloat("z_aim_rot")
+	)
+
+	self.offset.canted.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_canted_pos"),
+		self.script.mutator.GetConfigurationFloat("y_canted_pos"),
+		self.script.mutator.GetConfigurationFloat("z_canted_pos")
+	)
+
+	self.offset.canted.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_canted_rot"),
+		self.script.mutator.GetConfigurationFloat("y_canted_rot"),
+		self.script.mutator.GetConfigurationFloat("z_canted_rot")
+	)
+
+	self.offset.overhead.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_overhead_pos"),
+		self.script.mutator.GetConfigurationFloat("y_overhead_pos"),
+		self.script.mutator.GetConfigurationFloat("z_overhead_pos")
+	)
+
+	self.offset.overhead.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_overhead_rot"),
+		self.script.mutator.GetConfigurationFloat("y_overhead_rot"),
+		self.script.mutator.GetConfigurationFloat("z_overhead_rot")
+	)
+
+	self.offset.sprint.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_sprint_pos"),
+		self.script.mutator.GetConfigurationFloat("y_sprint_pos"),
+		self.script.mutator.GetConfigurationFloat("z_sprint_pos")
+	)
+
+	self.offset.sprint.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("x_sprint_rot"),
+		self.script.mutator.GetConfigurationFloat("y_sprint_rot"),
+		self.script.mutator.GetConfigurationFloat("z_sprint_rot")
+	)
 end
 
 --[[
@@ -476,7 +555,7 @@ function main_wfm:offsets()
 	local condzRot = Quaternion.Euler(Vector3(self.offset.deadzone.x, self.offset.deadzone.y, 0))
 	local consyRot = Quaternion.Euler(Vector3(-self.offset.sway.y, self.offset.sway.x, -self.offset.sway.x))
 	
-	local pos = self.offset.curPos + Vector3.new(0, 0, self.settings.pushback) + self.offset.sprint.current.pos + self.offset.bobbing.current.pos
+	local pos = self.offset.curPos + Vector3.new(0, self.settings.pushback / 5, self.settings.pushback) + self.offset.sprint.current.pos + self.offset.bobbing.current.pos
 	local rot = conRot * Quaternion.Euler(self.offset.sprint.current.rot) * Quaternion.Euler(self.offset.bobbing.current.rot) * Quaternion.Euler(self.offset.bobbing.current.rot)
 	local dzRot = condzRot
 
