@@ -1,8 +1,6 @@
 -- Register the behaviour
 behaviour("character_wfm")
 
-local RANGE = 30
-
 --[[
 compared to the main wfm this lowk has less comments but that's cuz im so fucking lazy, but ill be sure to add in the same concepts
 
@@ -202,7 +200,7 @@ function character_wfm:enable(actor, audioNode)
 			end
 
 			woundSounds()
-			coroutine.yield(WaitForSeconds(7))
+			coroutine.yield(WaitForSeconds(1))
 		end
 	end)
 end

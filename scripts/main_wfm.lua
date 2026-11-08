@@ -2,8 +2,16 @@
 -- for future self, replace the shit inside behaviour with the file name, faggot.
 behaviour("main_wfm")
 
+local hitCache = {}
+local createdWeapCache = {}
+
 local currentHeldString = ""
 local currentHeldNumber = 67 -- this is necessary...
+
+local slowwalk_key = nil
+local arma_zoom_key = nil
+local overhead_key = nil
+local canted_key = nil
 
 --[[
 
@@ -31,6 +39,12 @@ function main_wfm:Start()
 	self:setup()
 	self.enabled = true
 
+	-- setting up key inputs
+	slowwalk_key = KeyCode[self.script.mutator.GetConfigurationString("walk_alt")]
+	arma_zoom_key = KeyCode[self.script.mutator.GetConfigurationString("arma_zoom")]
+	overhead_key = KeyCode[self.script.mutator.GetConfigurationString("overhead_input")]
+	canted_key = KeyCode[self.script.mutator.GetConfigurationString("canted_input")]
+
 	-- add listeners
 	GameEvents.onActorSpawn.AddListener(self, "onSpawn")
 end
@@ -55,9 +69,6 @@ function main_wfm:Update()
 		return
 	end
 
-	-- fire character related shit
-	self:slowWalk()
-
 	local actWeap = self.character.activeWeapon
 	if actWeap == nil then
 		return
@@ -66,8 +77,11 @@ function main_wfm:Update()
 	-- handles fov
 	local cutbackFov = self.settings.default_fieldofview - self.settings.arma_zoom_cutback
 	local isInRestrictionsAim = self:findStringInTable(actWeap.weaponEntry.name, self.settings.ban_ocz_aimming)
+
 	PlayerCamera.activeCamera.fieldOfView = self.settings.set_fov
-	self.settings.set_fov = lerp(self.settings.set_fov, self.settings.lerp_fov, Time.deltaTime * 12)
+	if self.settings.set_fov ~= self.settings.lerp_fov then
+		self.settings.set_fov = lerp(self.settings.set_fov, self.settings.lerp_fov, Time.deltaTime * 12)
+	end
 
 	if isInRestrictionsAim == true then
 		if self.character.isAiming == true then
@@ -88,9 +102,15 @@ function main_wfm:Update()
 	end
 	
 	-- arma style aimming
-	if self.settings.arma_aim == true and Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("arma_zoom")]) then
+	if self.settings.arma_aim == true and Input.GetKeyDown(arma_zoom_key) then
 		self.settings.arma_enabled_aim = not self.settings.arma_enabled_aim
 	end
+
+	-- fire viewmodel related shit
+	self:weaponSetup()
+	self:viewmodelOffsets()
+	self:specializedAiming()
+	self:slowWalk()
 
 	-- handle aimming position
 	if self.character.isAiming == true then
@@ -109,11 +129,6 @@ function main_wfm:Update()
 		self.offset.curRot = self.offset.idle.rot
 	end
 
-	-- fire viewmodel related shit
-	self:weapSetup()
-	self:offsets()
-	self:secAim()
-	
 	-- debugging purposes n shit
 	--print("RAHH this is my stance " .. tostring(self.character.stance))
 end
@@ -121,6 +136,7 @@ end
 --[[
 Called every frame after animations and game logic update
 ]]
+
 function main_wfm:LateUpdate()
 	if self.enabled == false then
 		return
@@ -137,12 +153,15 @@ function main_wfm:LateUpdate()
 	if self:checkVehicle() == true then
 		return
 	end
-	
+
 	local actWeap = self.character.activeWeapon
 	if actWeap == nil then
 		return
 	end
-	
+
+	local playerVelocity = self.character.velocity.magnitude
+	local input = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
+
 	-- sprinting
 	if self.character.isSprinting == true then
 		self.offset.sprint.current.pos = self.offset.sprint.pos
@@ -153,8 +172,6 @@ function main_wfm:LateUpdate()
 	end
 
 	-- bobbing in general
-	local playerVelocity = self.character.velocity.magnitude
-
 	if playerVelocity > 0 then
 		local bobY = math.sin(Time.time * 6) * playerVelocity
 		local bobX = math.sin(Time.time * 12) * playerVelocity
@@ -175,9 +192,6 @@ function main_wfm:LateUpdate()
 		self.offset.bobbing.current.rot = Vector3.new(0, 0, 0)
 	end
 
-	-- inputs
-	local input = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
-	
 	-- deadzone shit
 	if self.settings.can_deadzone == true then
 		if self.character.isAiming == true and self.settings.can_deadzone_aim == false then
@@ -203,21 +217,25 @@ function main_wfm:LateUpdate()
 		end
 	end
 
-	-- cool ass sway
+	-- swaying shit
 	if self.settings.can_sway == true then
 		self.offset.sway = self.offset.sway + Vector2(input.x * self.settings.sway_multiplier, input.y * self.settings.sway_multiplier)
 		self.offset.sway = Vector2.Lerp(self.offset.sway, Vector2(0, 0), Time.deltaTime * 25)
 	end
 	
 	-- weapon pushback shit
-	local distance = 0.8
+	--local distance = 0.8
 	local target = RaycastTarget.ProjectileHit
 	local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
-	local hit = Physics.Raycast(ray, distance, target)
+	local hit = Physics.Raycast(ray, 0.8, target)
 
 	if hit then
-		if hit.collider.gameObject.GetComponentInParent(Actor) == nil or hit.collider.gameObject.GetComponentInParent(Actor).isBot then
-			self.settings.pushback = hit.distance - distance
+		if hitCache[hit.transform.name] ~= nil then
+			self.settings.pushback = hit.distance - 0.8
+		else
+			if hit.collider.gameObject.GetComponentInParent(Actor) == nil or hit.collider.gameObject.GetComponentInParent(Actor).isBot then
+				hitCache[hit.transform.name] = hit
+			end
 		end
 	else
 		self.settings.pushback = 0
@@ -361,83 +379,82 @@ function main_wfm:slowWalk()
 	--[[
 	how the function works, when you hold down a certain keycode, it'll basically let you slow walk.
 	]]
-	self.script:StartCoroutine(function()
-		if self.settings.can_slow_walk == false then
+	if self.settings.can_slow_walk == false then
 			return
 		end
 
-		-- blehhh we just resetting it in case we're not standing or running
-		if self:restrictWhenSlowWalk() == true then
-			if self.character.speedMultiplier ~= 1 then
-				self.character.speedMultiplier = 1
-			end
-
-			if self.settings.is_slow_walk == true then
-				self.settings.is_slow_walk = false
-			end
-			return
-		end
-
-		-- main shit
-		if not Input:GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("walk_alt")]) then
-			return
-		end
-				
-		self.settings.is_slow_walk = not self.settings.is_slow_walk
-		
-		if self.settings.is_slow_walk == true then
-			self.character.speedMultiplier = self.settings.slow_walk_speed
-		else
+	-- blehhh we just resetting it in case we're not standing or running
+	if self:restrictWhenSlowWalk() == true then
+		if self.character.speedMultiplier ~= 1 then
 			self.character.speedMultiplier = 1
 		end
-	end)
+
+		if self.settings.is_slow_walk == true then
+			self.settings.is_slow_walk = false
+		end
+		return
+	end
+
+	-- main shit
+	if not Input:GetKeyDown(slowwalk_key) then
+		return
+	end
+				
+	self.settings.is_slow_walk = not self.settings.is_slow_walk
+	
+	if self.settings.is_slow_walk == true then
+		self.character.speedMultiplier = self.settings.slow_walk_speed
+	else
+		self.character.speedMultiplier = 1
+	end
 end
 
 --[[
 sets up weapon
 ]]
-function main_wfm:weapSetup()
+function main_wfm:weaponSetup()
 	local actWeap = self.character.activeWeapon
+	if currentHeldString == tostring(actWeap.weaponEntry.name) or currentHeldNumber == actWeap.slot then
+		return
+	end
 
-	self.script:StartCoroutine(function()
-		if currentHeldString == tostring(actWeap.weaponEntry.name) or currentHeldNumber == actWeap.slot then
-			return
-		end
+	-- just setting this up so this doesn't happen repeatly
+	currentHeldString = tostring(actWeap.weaponEntry.name)
+	currentHeldNumber = actWeap.slot
 
-		-- just setting this up so this doesn't happen repeatly
-		currentHeldString = tostring(actWeap.weaponEntry.name)
-		currentHeldNumber = actWeap.slot
+	if createdWeapCache[currentHeldString] ~= nil then
+		--print("already has one chief")
+		return
+	end
 
-		--print(currentHeldString)
-		--print(currentHeldNumber)
+	--print("couldn't find weapon handler node")
+	--print("creating")
 
-		if actWeap.transform.parent.name == "Weapon_Node_3D" then
-			--print("already has one chief")
-			return
-		end
+	-- creating the node
+	local deadzoneNode = GameObject.instantiate(self.targets.handle, actWeap.transform.parent.transform)
+	local handleNode = GameObject.instantiate(self.targets.handle, deadzoneNode.transform)
+	deadzoneNode.name = "Deadzone_Node_3D"
+	handleNode.name = "Weapon_Node_3D"
+	
+	-- setting up positions/rotations
+	deadzoneNode.transform.rotation = actWeap.transform.rotation
+	deadzoneNode.transform.position = actWeap.transform.position
 
-		--print("couldn't find weapon handler node")
-		--print("creating")
+	handleNode.transform.rotation = actWeap.transform.rotation
+	handleNode.transform.position = actWeap.transform.position
+	actWeap.transform.parent = handleNode.transform
 
-		local deadzoneNode = GameObject.instantiate(self.targets.handle, actWeap.transform.parent.transform)
-		local handleNode = GameObject.instantiate(self.targets.handle, deadzoneNode.transform)
-		deadzoneNode.name = "Deadzone_Node_3D"
-		handleNode.name = "Weapon_Node_3D"
-		
-		deadzoneNode.transform.rotation = actWeap.transform.rotation
-		deadzoneNode.transform.position = actWeap.transform.position
+	createdWeapCache[currentHeldString] = actWeap.transform.parent
 
-		handleNode.transform.rotation = actWeap.transform.rotation
-		handleNode.transform.position = actWeap.transform.position
-		actWeap.transform.parent = handleNode.transform
-	end)
+	-- debug purposes
+	--print("Creating weapon setup")
 end
 
 --[[
 handles canted/overhead aimming
 ]]
-function main_wfm:secAim()
-	if Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("overhead_input")]) then
+function main_wfm:specializedAiming()
+	if Input.GetKeyDown(overhead_key) then
 		if self.settings.sec_aim_var ==  1 then
 			self.settings.sec_aim_var = 0
 		else
@@ -445,7 +462,7 @@ function main_wfm:secAim()
 		end
 	end
 	
-	if Input.GetKeyDown(KeyCode[self.script.mutator.GetConfigurationString("canted_input")]) then
+	if Input.GetKeyDown(canted_key) then
 		if self.settings.sec_aim_var == -1 then
 			self.settings.sec_aim_var = 0
 		else
@@ -544,7 +561,7 @@ DEVELOPER NOTE: some of the code here was AI generated.... when i was working on
 back then i used AI to essentially make certain things that i didnt know how to do, but for this project, i'll strictly be using AI to look through documentation,
 even then AI usage is still strict, i dont blame you if you either dont believe me or not like me for my AI use i understand, but rest assure, i'll do my best
 ]]
-function main_wfm:offsets()
+function main_wfm:viewmodelOffsets()
 	local actWeap = self.character.activeWeapon
 	local handleNode = actWeap.transform.parent
 	local deadzoneNode = handleNode.transform.parent
@@ -604,7 +621,6 @@ does checks whether player is in a wehhickle that could support the functions
 ]]
 function main_wfm:checkVehicle()
 	if Player.actor.activeSeat then
-
 		if Player.actor.isDriver == true then
 			return true
 		end
