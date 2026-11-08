@@ -46,7 +46,7 @@ function main_wfm:Start()
 
 	-- set stuff
 	self:setup()
-	
+
 	-- add listeners
 	GameEvents.onActorSpawn.AddListener(self, "onSpawn")
 end
@@ -643,7 +643,9 @@ like i said copied and pasted i forgot, ts was definitely ai cuz aint no way i d
 function main_wfm:parseWeaponString(weaponString)
     local weapons = {}
     for weaponName in weaponString:gmatch("[^;]+") do
-		weapons[weaponName] = tostring(weaponName)
+		local matched = weaponName:match("^%s*(.-)%s*$")
+		weapons[matched] = tostring(matched)
+		print("_"..weapons[matched].."_")
     end
     return weapons
 end
