@@ -5,13 +5,10 @@ behaviour("main_wfm")
 local hitCache = {}
 local createdWeapCache = {}
 
-local currentHeldString = ""
-local currentHeldNumber = 67 -- this is necessary...
-
-local slowwalk_key = nil
-local arma_zoom_key = nil
-local overhead_key = nil
-local canted_key = nil
+local slowwalk_key = KeyCode.LeftAlt
+local arma_zoom_key = KeyCode.T
+local overhead_key = KeyCode.Y
+local canted_key = KeyCode.H
 
 --[[
 
@@ -107,7 +104,7 @@ function main_wfm:Update()
 	end
 
 	-- fire viewmodel related shit
-	self:weaponSetup()
+	--self:weaponSetup()
 	self:viewmodelOffsets()
 	self:specializedAiming()
 	self:slowWalk()
@@ -136,7 +133,6 @@ end
 --[[
 Called every frame after animations and game logic update
 ]]
-
 function main_wfm:LateUpdate()
 	if self.enabled == false then
 		return
@@ -345,9 +341,6 @@ function main_wfm:setup()
 	self.offset.curPos = self.offset.idle.pos
 	self.offset.curRot = self.offset.idle.rot
 
-	currentHeldString = ""
-	currentHeldNumber = 67
-
 	self:setConfiguration()
 end
 
@@ -363,13 +356,17 @@ function main_wfm:onSpawn(actor)
 		return
 	end
 
-	-- set up shiet
+	-- set up shiet (updating purposes)
 	self.character = actor
 	self:setup()
 
-	-- debug shit
-	--print("Player spawned")
-	--print(self.character)
+	local weaponSlots = self.character.weaponSlots
+
+	-- check every single weapon
+	-- NOTE TO SELF: this is just to tryn  iouhhhhh be more performant since weapon setup is always being called every frame which isn't good
+	for i, weapon in pairs(weaponSlots) do
+		self:createNode(weapon)
+	end
 end
 
 --[[
@@ -410,41 +407,32 @@ function main_wfm:slowWalk()
 end
 
 --[[
-sets up weapon
+sets up weapon nodes, which allows everything to be moved n shit
 ]]
-function main_wfm:weaponSetup()
-	local actWeap = self.character.activeWeapon
-	if currentHeldString == tostring(actWeap.weaponEntry.name) or currentHeldNumber == actWeap.slot then
+function main_wfm:createNode(weap)
+	--[[
+	if createdWeapCache[test.transform.name] ~= nil then
 		return
 	end
-
-	-- just setting this up so this doesn't happen repeatly
-	currentHeldString = tostring(actWeap.weaponEntry.name)
-	currentHeldNumber = actWeap.slot
-
-	if createdWeapCache[currentHeldString] ~= nil then
-		--print("already has one chief")
-		return
-	end
-
+	]]
 	--print("couldn't find weapon handler node")
 	--print("creating")
 
 	-- creating the node
-	local deadzoneNode = GameObject.instantiate(self.targets.handle, actWeap.transform.parent.transform)
+	local deadzoneNode = GameObject.instantiate(self.targets.handle, weap.transform.parent.transform)
 	local handleNode = GameObject.instantiate(self.targets.handle, deadzoneNode.transform)
 	deadzoneNode.name = "Deadzone_Node_3D"
 	handleNode.name = "Weapon_Node_3D"
-	
+
 	-- setting up positions/rotations
-	deadzoneNode.transform.rotation = actWeap.transform.rotation
-	deadzoneNode.transform.position = actWeap.transform.position
+	deadzoneNode.transform.rotation = weap.transform.rotation
+	deadzoneNode.transform.position = weap.transform.position
 
-	handleNode.transform.rotation = actWeap.transform.rotation
-	handleNode.transform.position = actWeap.transform.position
-	actWeap.transform.parent = handleNode.transform
+	handleNode.transform.rotation = weap.transform.rotation
+	handleNode.transform.position = weap.transform.position
+	weap.transform.parent = handleNode.transform
 
-	createdWeapCache[currentHeldString] = actWeap.transform.parent
+	createdWeapCache[weap.transform.name] = weap.transform.name
 
 	-- debug purposes
 	--print("Creating weapon setup")

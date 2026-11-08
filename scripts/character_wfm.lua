@@ -20,6 +20,7 @@ It should be safe to interact with other components and scripts which references
 in my own words: fires when a battle is started
 ]]
 function character_wfm:Start()
+	-- setting up default shit
 	self.settings = {
 		painWound = 30,
 		heavilyWounded = 25,
