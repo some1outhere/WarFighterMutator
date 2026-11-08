@@ -5,6 +5,9 @@ behaviour("main_wfm")
 local hitCache = {}
 local createdWeapCache = {}
 
+local Euler = Quaternion.Euler
+local sin = Mathf.sin
+
 local slowwalk_key = KeyCode.LeftAlt
 local arma_zoom_key = KeyCode.T
 local overhead_key = KeyCode.Y
@@ -33,7 +36,6 @@ in my own words: fires when a battle is started
 ]]
 function main_wfm:Start()
 	-- set stuff
-	self:setup()
 	self.enabled = true
 
 	-- setting up key inputs
@@ -42,6 +44,9 @@ function main_wfm:Start()
 	overhead_key = KeyCode[self.script.mutator.GetConfigurationString("overhead_input")]
 	canted_key = KeyCode[self.script.mutator.GetConfigurationString("canted_input")]
 
+	-- set stuff
+	self:setup()
+	
 	-- add listeners
 	GameEvents.onActorSpawn.AddListener(self, "onSpawn")
 end
@@ -73,14 +78,14 @@ function main_wfm:Update()
 
 	-- handles fov
 	local cutbackFov = self.settings.default_fieldofview - self.settings.arma_zoom_cutback
-	local isInRestrictionsAim = self:findStringInTable(actWeap.weaponEntry.name, self.settings.ban_ocz_aimming)
+	local isInRestrictionsAim = self.settings.ban_ocz_aimming[tostring(actWeap.weaponEntry.name)]
 
 	PlayerCamera.activeCamera.fieldOfView = self.settings.set_fov
 	if self.settings.set_fov ~= self.settings.lerp_fov then
 		self.settings.set_fov = lerp(self.settings.set_fov, self.settings.lerp_fov, Time.deltaTime * 12)
 	end
 
-	if isInRestrictionsAim == true then
+	if isInRestrictionsAim == tostring(actWeap.weaponEntry.name) then
 		if self.character.isAiming == true then
 			self.settings.lerp_fov = actWeap.aimFov
 		else
@@ -104,7 +109,6 @@ function main_wfm:Update()
 	end
 
 	-- fire viewmodel related shit
-	--self:weaponSetup()
 	self:viewmodelOffsets()
 	self:specializedAiming()
 	self:slowWalk()
@@ -169,23 +173,23 @@ function main_wfm:LateUpdate()
 
 	-- bobbing in general
 	if playerVelocity > 0 then
-		local bobY = math.sin(Time.time * 6) * playerVelocity
-		local bobX = math.sin(Time.time * 12) * playerVelocity
+		local bobY = sin(Time.time * 6) * playerVelocity
+		local bobX = sin(Time.time * 12) * playerVelocity
 
 		local vel = Player.actor.velocity
 		local right = PlayerCamera.activeCamera.transform.right
 		local lateralSpeed = Vector3.Dot(vel, -right)
 		
 		if self.character.isSprinting == true then
-			self.offset.bobbing.current.pos = Vector3.new(0, 0, 0)
-			self.offset.bobbing.current.rot = Vector3.new(0, bobX * 2, lateralSpeed * 1)
+			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
+			self.offset.bobbing.current.rot = Vector3(0, bobX * 2, lateralSpeed * 1)
 		else
-			self.offset.bobbing.current.pos = Vector3.new(0, 0, 0)
-			self.offset.bobbing.current.rot = Vector3.new(0, 0, lateralSpeed * 1)
+			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
+			self.offset.bobbing.current.rot = Vector3(0, 0, lateralSpeed * 1)
 		end
 	else
-		self.offset.bobbing.current.pos = Vector3.new(0, 0, 0)
-		self.offset.bobbing.current.rot = Vector3.new(0, 0, 0)
+		self.offset.bobbing.current.pos = Vector3(0, 0, 0)
+		self.offset.bobbing.current.rot = Vector3(0, 0, 0)
 	end
 
 	-- deadzone shit
@@ -220,7 +224,7 @@ function main_wfm:LateUpdate()
 	end
 	
 	-- weapon pushback shit
-	--local distance = 0.8
+	--[[
 	local target = RaycastTarget.ProjectileHit
 	local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
 	local hit = Physics.Raycast(ray, 0.8, target)
@@ -235,7 +239,7 @@ function main_wfm:LateUpdate()
 		end
 	else
 		self.settings.pushback = 0
-	end
+	end]]
 end
 
 --[[
@@ -553,14 +557,14 @@ function main_wfm:viewmodelOffsets()
 	local actWeap = self.character.activeWeapon
 	local handleNode = actWeap.transform.parent
 	local deadzoneNode = handleNode.transform.parent
-
-	-- con is short for converted
-	local conRot = Quaternion.Euler(self.offset.curRot)
-	local condzRot = Quaternion.Euler(Vector3(self.offset.deadzone.x, self.offset.deadzone.y, 0))
-	local consyRot = Quaternion.Euler(Vector3(-self.offset.sway.y, self.offset.sway.x, -self.offset.sway.x))
 	
-	local pos = self.offset.curPos + Vector3.new(0, self.settings.pushback / 5, self.settings.pushback) + self.offset.sprint.current.pos + self.offset.bobbing.current.pos
-	local rot = conRot * Quaternion.Euler(self.offset.sprint.current.rot) * Quaternion.Euler(self.offset.bobbing.current.rot) * Quaternion.Euler(self.offset.bobbing.current.rot)
+	-- con is short for converted
+	local conRot = Euler(self.offset.curRot)
+	local condzRot = Euler(Vector3(self.offset.deadzone.x, self.offset.deadzone.y, 0))
+	local consyRot = Euler(Vector3(-self.offset.sway.y, self.offset.sway.x, -self.offset.sway.x))
+	
+	local pos = self.offset.curPos + Vector3(0, self.settings.pushback / 5, self.settings.pushback) + self.offset.sprint.current.pos + self.offset.bobbing.current.pos
+	local rot = conRot * Euler(self.offset.sprint.current.rot) * Euler(self.offset.bobbing.current.rot) * Euler(self.offset.bobbing.current.rot)
 	local dzRot = condzRot
 
 	local lerpPos = Vector3.Lerp(handleNode.transform.localPosition, pos, Time.deltaTime * 12)
@@ -626,22 +630,20 @@ end
 literally copied and pasted from KMCs lol
 ]]
 function main_wfm:findStringInTable(name, tbl)
-    for i, v in ipairs(tbl) do
-		if name == v then
-			return true
-		end
+	for i = 1, #tbl do
+		print(i)
 	end
-
+   
 	return false
 end
 
 --[[
-like i said copied and pasted i forgot, ts was definitely ai cuz aint no way
+like i said copied and pasted i forgot, ts was definitely ai cuz aint no way i did this
 ]]
 function main_wfm:parseWeaponString(weaponString)
     local weapons = {}
     for weaponName in weaponString:gmatch("[^;]+") do
-        table.insert(weapons, weaponName:match("^%s*(.-)%s*$"))
+		weapons[weaponName] = tostring(weaponName)
     end
     return weapons
 end
