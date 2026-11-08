@@ -16,7 +16,6 @@ update: also added check functions because yes. i should probably learn how to a
 
 anyhow seems like my roblox lua skills and other previous skills from making kanzou's modern combat system is coming in clutch, love to see it.
 
-fun fact: ayyubid flashed me gore when i was 15
 - sum1outbear/Braincell5/Kanzou 
 ]]
 
@@ -351,8 +350,8 @@ function main_wfm:onSpawn(actor)
 	self:setup()
 
 	-- debug shit
-	print("Player spawned")
-	print(self.character)
+	--print("Player spawned")
+	--print(self.character)
 end
 
 --[[
@@ -409,16 +408,16 @@ function main_wfm:weapSetup()
 		currentHeldString = tostring(actWeap.weaponEntry.name)
 		currentHeldNumber = actWeap.slot
 
-		print(currentHeldString)
-		print(currentHeldNumber)
+		--print(currentHeldString)
+		--print(currentHeldNumber)
 
 		if actWeap.transform.parent.name == "Weapon_Node_3D" then
-			print("already has one chief")
+			--print("already has one chief")
 			return
 		end
 
-		print("couldn't find weapon handler node")
-		print("creating")
+		--print("couldn't find weapon handler node")
+		--print("creating")
 
 		local deadzoneNode = GameObject.instantiate(self.targets.handle, actWeap.transform.parent.transform)
 		local handleNode = GameObject.instantiate(self.targets.handle, deadzoneNode.transform)
