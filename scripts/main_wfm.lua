@@ -12,6 +12,8 @@ local slowwalk_key = KeyCode.LeftAlt
 local arma_zoom_key = KeyCode.T
 local overhead_key = KeyCode.Y
 local canted_key = KeyCode.H
+local highready_key = KeyCode.O
+local lowready_key = KeyCode.K
 
 --[[
 
@@ -131,6 +133,34 @@ function main_wfm:Update()
 		self.offset.curRot = self.offset.idle.rot
 	end
 
+	-- handle high/low readies
+	if self.settings.allow_weapon_stance == true then
+		if Input.GetKeyDown(highready_key) then
+			if weapon_stance == 1 then
+				weapon_stance = 0
+			else
+				weapon_stance = 1
+			end
+		elseif Input.GetKeyDown(lowready_key) then
+			if weapon_stance == -1 then
+				weapon_stance = 0
+			else
+				weapon_stance = -1
+			end
+		end
+
+		if weapon_stance == 1 and self.character.isAiming == false then
+			self.offset.high_low_ready.current.pos = self.offset.high_low_ready.highready.pos
+			self.offset.high_low_ready.current.rot = self.offset.high_low_ready.highready.rot
+		elseif weapon_stance == -1 and self.character.isAiming == false then
+			self.offset.high_low_ready.current.pos = self.offset.high_low_ready.lowready.pos
+			self.offset.high_low_ready.current.rot = self.offset.high_low_ready.lowready.rot
+		else
+			self.offset.high_low_ready.current.pos = Vector3(0, 0, 0)
+			self.offset.high_low_ready.current.rot = Vector3(0, 0, 0)
+		end
+	end
+
 	-- debugging purposes n shit
 	--print("RAHH this is my stance " .. tostring(self.character.stance))
 end
@@ -225,7 +255,6 @@ function main_wfm:LateUpdate()
 	end
 	
 	-- weapon pushback shit
-	--[[
 	local target = RaycastTarget.ProjectileHit
 	local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
 	local hit = Physics.Raycast(ray, 0.8, target)
@@ -240,7 +269,7 @@ function main_wfm:LateUpdate()
 		end
 	else
 		self.settings.pushback = 0
-	end]]
+	end
 end
 
 --[[
@@ -273,9 +302,12 @@ function main_wfm:setup()
 		can_slow_walk = true,
 		is_slow_walk = false,
 		slow_walk_speed = 0.6,
-		
+	
 		can_sway = true,
 		sway_multiplier = 3.5,
+
+		allow_weapon_stance = true,
+		weapon_stance = 0,
 
 		can_deadzone = true,
 		deadzone_multiplier = 3,
@@ -335,6 +367,23 @@ function main_wfm:setup()
 		overhead = {
 			pos = Vector3(0.05, 0.21, -0.2),
 			rot = Vector3(0, 0, 55),
+		},
+
+		high_low_ready = {
+			current = {
+				pos = Vector3(0, 0, 0),
+				rot = Vector3(0, 0, 0)
+			},
+
+			highready = {
+				pos = Vector3(0, -0.45, 0),
+				rot = Vector3(-45, 0, 0),
+			},
+			
+			lowready = {
+				pos = Vector3(0, 0, 0),
+				rot = Vector3(25, 0, 0),
+			},
 		},
 
 		deadzone = Vector2(0, 0),
@@ -563,9 +612,20 @@ function main_wfm:viewmodelOffsets()
 	local conRot = Euler(self.offset.curRot)
 	local condzRot = Euler(Vector3(self.offset.deadzone.x, self.offset.deadzone.y, 0))
 	local consyRot = Euler(Vector3(-self.offset.sway.y, self.offset.sway.x, -self.offset.sway.x))
-	
-	local pos = self.offset.curPos + Vector3(0, self.settings.pushback / 5, self.settings.pushback) + self.offset.sprint.current.pos + self.offset.bobbing.current.pos
-	local rot = conRot * Euler(self.offset.sprint.current.rot) * Euler(self.offset.bobbing.current.rot) * Euler(self.offset.bobbing.current.rot)
+
+	-- position
+	local weaponPushBackPos = Vector3(0, self.settings.pushback / 5, self.settings.pushback)
+	local sprintPos = self.offset.sprint.current.pos
+	local bobbingPos = self.offset.bobbing.current.pos
+	local highLowReadyPos = self.offset.high_low_ready.current.pos
+
+	-- rotation
+	local sprintRot = Euler(self.offset.sprint.current.rot)
+	local bobbingRot = Euler(self.offset.bobbing.current.rot)
+	local highLowReadyRot = Euler(self.offset.high_low_ready.current.rot)
+
+	local pos = self.offset.curPos + weaponPushBackPos + sprintPos + bobbingPos + highLowReadyPos
+	local rot = conRot * sprintRot * bobbingRot * highLowReadyRot
 	local dzRot = condzRot
 
 	local lerpPos = Vector3.Lerp(handleNode.transform.localPosition, pos, Time.deltaTime * 12)
