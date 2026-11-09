@@ -77,15 +77,16 @@ function main_wfm:Update()
 	end
 
 	-- handles fov
+	local weapName = tostring(actWeap.weaponEntry.name)
 	local cutbackFov = self.settings.default_fieldofview - self.settings.arma_zoom_cutback
-	local isInRestrictionsAim = self.settings.ban_ocz_aimming[tostring(actWeap.weaponEntry.name)]
+	local isInRestrictionsAim = self.settings.ban_ocz_aimming[weapName]
 
 	PlayerCamera.activeCamera.fieldOfView = self.settings.set_fov
 	if self.settings.set_fov ~= self.settings.lerp_fov then
 		self.settings.set_fov = lerp(self.settings.set_fov, self.settings.lerp_fov, Time.deltaTime * 12)
 	end
 
-	if isInRestrictionsAim == tostring(actWeap.weaponEntry.name) then
+	if isInRestrictionsAim == weapName then
 		if self.character.isAiming == true then
 			self.settings.lerp_fov = actWeap.aimFov
 		else
@@ -115,10 +116,10 @@ function main_wfm:Update()
 
 	-- handle aimming position
 	if self.character.isAiming == true then
-		if self.settings.sec_aim_var == 1 and isInRestrictionsAim == false then
+		if self.settings.sec_aim_var == 1 and isInRestrictionsAim ~= weapName then
 			self.offset.curPos = self.offset.overhead.pos
 			self.offset.curRot = self.offset.overhead.rot
-		elseif self.settings.sec_aim_var == -1 and isInRestrictionsAim == false then
+		elseif self.settings.sec_aim_var == -1 and isInRestrictionsAim ~= weapName then
 			self.offset.curPos = self.offset.canted.pos
 			self.offset.curRot = self.offset.canted.rot
 		else
