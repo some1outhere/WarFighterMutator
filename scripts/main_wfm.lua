@@ -8,12 +8,23 @@ local createdWeapCache = {}
 local Euler = Quaternion.Euler
 local sin = Mathf.sin
 
-local slowwalk_key = KeyCode.LeftAlt
-local arma_zoom_key = KeyCode.T
-local overhead_key = KeyCode.Y
+local arma_enabled_aim = false
+local is_slow_walk = false
+
+local set_fov = 90
+local lerp_fov = 90
+
+local sec_aim_var = 0
+local pushback = 0
+
+local weapon_stance = 0
+
 local canted_key = KeyCode.H
+local overhead_key = KeyCode.Y
 local highready_key = KeyCode.O
 local lowready_key = KeyCode.K
+local arma_zoom_key = KeyCode.T
+local slowwalk_key = KeyCode.LeftAlt
 
 --[[
 
@@ -29,34 +40,30 @@ anyhow seems like my roblox lua skills and other previous skills from making kan
 - sum1outbear/Braincell5/Kanzou 
 ]]
 
--- BUILT IN FUNCTIONS
 --[[
 Called once when the Ravenscript component is instantiated.
 It should be safe to interact with other components and scripts which references you gathered in Awake().
-
 in my own words: fires when a battle is started
 ]]
 function main_wfm:Start()
 	-- set stuff
 	self.enabled = true
 
-	-- setting up key inputs
-	slowwalk_key = KeyCode[self.script.mutator.GetConfigurationString("walk_alt")]
-	arma_zoom_key = KeyCode[self.script.mutator.GetConfigurationString("arma_zoom")]
-	overhead_key = KeyCode[self.script.mutator.GetConfigurationString("overhead_input")]
-	canted_key = KeyCode[self.script.mutator.GetConfigurationString("canted_input")]
-
 	-- set stuff
 	self:setup()
 
 	-- add listeners
 	GameEvents.onActorSpawn.AddListener(self, "onSpawn")
+
+	-- debug
+	print("start, version 0.0.9")
 end
 
 --[[
 Called once every frame. The bulk of all game logic goes here.
 ]]
 function main_wfm:Update()
+	-- do check blocks
 	if self.enabled == false then
 		return
 	end
@@ -80,48 +87,52 @@ function main_wfm:Update()
 
 	-- handles fov
 	local weapName = tostring(actWeap.weaponEntry.name)
-	local cutbackFov = self.settings.default_fieldofview - self.settings.arma_zoom_cutback
-	local isInRestrictionsAim = self.settings.ban_ocz_aimming[weapName]
+	local cutbackFov = self.settings.default_fieldofview - self.settings.zoom_amount
+	local isInRestrictionsAim = self.settings.ban_co_useaimz[weapName]
 
-	PlayerCamera.activeCamera.fieldOfView = self.settings.set_fov
-	if self.settings.set_fov ~= self.settings.lerp_fov then
-		self.settings.set_fov = lerp(self.settings.set_fov, self.settings.lerp_fov, Time.deltaTime * 12)
+	PlayerCamera.activeCamera.fieldOfView = set_fov
+
+	-- only lerp when there's actual change
+	if set_fov ~= lerp_fov then
+		set_fov = lerp(set_fov, lerp_fov, Time.deltaTime * self.settings.zoom_speed)
 	end
 
+	-- handling the field of view to have support for the arma zoom
 	if isInRestrictionsAim == weapName then
 		if self.character.isAiming == true then
-			self.settings.lerp_fov = actWeap.aimFov
+			lerp_fov = actWeap.aimFov
 		else
-			if self.settings.arma_enabled_aim == true then
-				self.settings.lerp_fov = cutbackFov
+			if arma_enabled_aim == true then
+				lerp_fov = cutbackFov
 			else
-				self.settings.lerp_fov = self.settings.default_fieldofview
+				lerp_fov = self.settings.default_fieldofview
 			end
 		end
 	else
-		if self.settings.arma_enabled_aim == true then
-			self.settings.lerp_fov = cutbackFov
+		if arma_enabled_aim == true then
+			lerp_fov = cutbackFov
 		else
-			self.settings.lerp_fov = self.settings.default_fieldofview
+			lerp_fov = self.settings.default_fieldofview
 		end
 	end
 	
 	-- arma style aimming
-	if self.settings.arma_aim == true and Input.GetKeyDown(arma_zoom_key) then
-		self.settings.arma_enabled_aim = not self.settings.arma_enabled_aim
+	if self.settings.allow_arma_zoom == true and Input.GetKeyDown(arma_zoom_key) then
+		arma_enabled_aim = not arma_enabled_aim
 	end
 
 	-- fire viewmodel related shit
 	self:viewmodelOffsets()
 	self:specializedAiming()
+	self:weaponStances()
 	self:slowWalk()
 
 	-- handle aimming position
-	if self.character.isAiming == true then
-		if self.settings.sec_aim_var == 1 and isInRestrictionsAim ~= weapName then
+	if self.character.isAiming == true and self.settings.enable_co ~= 0 then
+		if sec_aim_var == 1 and isInRestrictionsAim ~= weapName and self.settings.enable_co ~= 1 then
 			self.offset.curPos = self.offset.overhead.pos
 			self.offset.curRot = self.offset.overhead.rot
-		elseif self.settings.sec_aim_var == -1 and isInRestrictionsAim ~= weapName then
+		elseif sec_aim_var == -1 and isInRestrictionsAim ~= weapName and self.settings.enable_co ~= -1 then
 			self.offset.curPos = self.offset.canted.pos
 			self.offset.curRot = self.offset.canted.rot
 		else
@@ -134,21 +145,8 @@ function main_wfm:Update()
 	end
 
 	-- handle high/low readies
-	if self.settings.allow_weapon_stance == true then
-		if Input.GetKeyDown(highready_key) then
-			if weapon_stance == 1 then
-				weapon_stance = 0
-			else
-				weapon_stance = 1
-			end
-		elseif Input.GetKeyDown(lowready_key) then
-			if weapon_stance == -1 then
-				weapon_stance = 0
-			else
-				weapon_stance = -1
-			end
-		end
-
+	if self.settings.enable_hl_ready ~= 0 then
+		-- where the weapon stance sets up rotations and positions
 		if weapon_stance == 1 and self.character.isAiming == false then
 			self.offset.high_low_ready.current.pos = self.offset.high_low_ready.highready.pos
 			self.offset.high_low_ready.current.rot = self.offset.high_low_ready.highready.rot
@@ -169,6 +167,7 @@ end
 Called every frame after animations and game logic update
 ]]
 function main_wfm:LateUpdate()
+	-- necessary checks
 	if self.enabled == false then
 		return
 	end
@@ -190,10 +189,11 @@ function main_wfm:LateUpdate()
 		return
 	end
 
+	-- getting basic stuff
 	local playerVelocity = self.character.velocity.magnitude
 	local input = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
 
-	-- sprinting
+	-- if is sprinting then we can set sprinting animations
 	if self.character.isSprinting == true then
 		self.offset.sprint.current.pos = self.offset.sprint.pos
 		self.offset.sprint.current.rot = self.offset.sprint.rot
@@ -204,19 +204,22 @@ function main_wfm:LateUpdate()
 
 	-- bobbing in general
 	if playerVelocity > 0 then
-		local bobY = sin(Time.time * 6) * playerVelocity
 		local bobX = sin(Time.time * 12) * playerVelocity
-
 		local vel = Player.actor.velocity
 		local right = PlayerCamera.activeCamera.transform.right
-		local lateralSpeed = Vector3.Dot(vel, -right)
+		local lateralSpeed = 0
+
+		-- this is where the movement lean happens, basically weapon rolls when walking left/right
+		if self.settings.allow_lean_lr == true then
+			lateralSpeed = Vector3.Dot(vel, -right) * self.settings.amount_lr_lean
+		end
 		
 		if self.character.isSprinting == true then
 			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
-			self.offset.bobbing.current.rot = Vector3(0, bobX * 2, lateralSpeed * 1)
+			self.offset.bobbing.current.rot = Vector3(0, bobX * 2, lateralSpeed)
 		else
 			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
-			self.offset.bobbing.current.rot = Vector3(0, 0, lateralSpeed * 1)
+			self.offset.bobbing.current.rot = Vector3(0, 0, lateralSpeed)
 		end
 	else
 		self.offset.bobbing.current.pos = Vector3(0, 0, 0)
@@ -224,15 +227,26 @@ function main_wfm:LateUpdate()
 	end
 
 	-- deadzone shit
-	if self.settings.can_deadzone == true then
-		if self.character.isAiming == true and self.settings.can_deadzone_aim == false then
-			self.offset.deadzone = Vector2(0, 0)
+	if self.settings.allow_deadzone == true then
+
+		-- decide whether the mutiplier should use default or aim
+		local mutiplier = self.settings.deadzone_aim_multiplier
+		if mutiplier == 0 then
+			mutiplier = self.settings.deadzone_multiplier
 		else
-			self.offset.deadzone = self.offset.deadzone + Vector2(-input.y * self.settings.deadzone_multiplier, input.x * self.settings.deadzone_multiplier)
+			if self.character.isAiming == false then
+				mutiplier = self.settings.deadzone_multiplier
+			end
 		end
 
-		if self.settings.can_deadzone_aim == true and self.settings.can_deadzone_aim == true then
-			if self.offset.deadzone.magnitude <= self.settings.aim_deadzone_limit then
+		if self.character.isAiming == true and self.settings.allow_deadzone_aim == false then
+			self.offset.deadzone = Vector2(0, 0)
+		else
+			self.offset.deadzone = self.offset.deadzone + Vector2(-input.y * mutiplier, input.x * mutiplier)
+		end
+
+		if self.settings.allow_deadzone_aim == true then
+			if self.offset.deadzone.magnitude <= self.settings.deadzone_aim_limit then
 				self.offset.prevAimDeadzoneOffset = self.offset.deadzone
 			else
 				if self.character.isAiming == true then
@@ -249,32 +263,33 @@ function main_wfm:LateUpdate()
 	end
 
 	-- swaying shit
-	if self.settings.can_sway == true then
+	if self.settings.allow_sway == true then
 		self.offset.sway = self.offset.sway + Vector2(input.x * self.settings.sway_multiplier, input.y * self.settings.sway_multiplier)
 		self.offset.sway = Vector2.Lerp(self.offset.sway, Vector2(0, 0), Time.deltaTime * 25)
 	end
 	
-	-- weapon pushback shit
-	local target = RaycastTarget.ProjectileHit
-	local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
-	local hit = Physics.Raycast(ray, 0.8, target)
+	-- weapon collision shit
+	if self.settings.allow_weapon_collision == true then
+		local target = RaycastTarget.ProjectileHit
+		local ray = Ray(PlayerCamera.activeCamera.transform.position, Player.actor.activeWeapon.transform.forward)
+		local hit = Physics.Raycast(ray, 0.8, target)
 
-	if hit then
-		if hitCache[hit.transform.name] ~= nil then
-			self.settings.pushback = hit.distance - 0.8
-		else
-			if hit.collider.gameObject.GetComponentInParent(Actor) == nil or hit.collider.gameObject.GetComponentInParent(Actor).isBot then
-				hitCache[hit.transform.name] = hit
+		if hit then
+			if hitCache[hit.transform.name] ~= nil then
+				pushback = hit.distance - 0.8
+			else
+				if hit.collider.gameObject.GetComponentInParent(Actor) == nil or hit.collider.gameObject.GetComponentInParent(Actor).isBot then
+					hitCache[hit.transform.name] = hit
+				end
 			end
+		else
+			pushback = 0
 		end
-	else
-		self.settings.pushback = 0
 	end
 end
 
 --[[
 Called when the ScriptedBehaviour is destroyed
-
 in my own words: fires when playa leaves
 ]]
 function main_wfm:OnDestroy()
@@ -283,41 +298,46 @@ function main_wfm:OnDestroy()
 	self.enabled = false
 end
 
--- MY OWN FUNCTIONS
 --[[
 setup is where we set up every variable to it's default
 fucking hate it
 ]]
 function main_wfm:setup()
 	self.character = Player.actor
-	
+
 	self.settings = {
 		default_fieldofview = 100,
-		set_fov = 90,
-		lerp_fov = 90,
 
-		sec_aim_var = 0,
-		pushback = 0,
-		
-		can_slow_walk = true,
-		is_slow_walk = false,
+		enable_co = 0,
+		enable_hl_ready = 0,
+
+		allow_arma_zoom = true,
+		zoom_amount = 30,
+		zoom_speed = 12,
+
+		allow_sprint_anims = true,
+		bobbing_frequency = 12,
+
+		allow_lean_lr = true,
+		amount_lr_lean = 1,
+
+		allow_slow_walk = true,
 		slow_walk_speed = 0.6,
-	
-		can_sway = true,
+
+		allow_deadzone = true,
+		allow_deadzone_aim = false,
+		deadzone_limit = 25,
+		deadzone_aim_limit = 8,
+		deadzone_multiplier = 27,
+		deadzone_aim_multiplier = 8,
+
+		allow_sway = true,
 		sway_multiplier = 3.5,
 
-		allow_weapon_stance = true,
-		weapon_stance = 0,
-
-		can_deadzone = true,
-		deadzone_multiplier = 3,
-		deadzone_limit = 25,
-		aim_deadzone_limit = 8,
-		can_deadzone_aim = false,
-
-		arma_aim = true,
-		arma_enabled_aim = false,
-		arma_zoom_cutback = 30,
+		allow_weapon_collision = true,
+		lower_upon_collision = true,
+		weapon_upwards_collision = 0,
+		weapon_rights_collision = 0,
 	}
 	
 	self.offset = {
@@ -399,6 +419,127 @@ function main_wfm:setup()
 end
 
 --[[
+in it's name, i'm just fucking lazy
+]]
+function main_wfm:setConfiguration()
+	-- setting up inputs here
+	canted_key = KeyCode[self.script.mutator.GetConfigurationString("bind_canted")]
+	overhead_key = KeyCode[self.script.mutator.GetConfigurationString("bind_overhead")]
+	highready_key = KeyCode[self.script.mutator.GetConfigurationString("bind_highready")]
+	lowready_key = KeyCode[self.script.mutator.GetConfigurationString("bind_lowready")]
+	slowwalk_key = KeyCode[self.script.mutator.GetConfigurationString("bind_slowwalk")]
+	arma_zoom_key = KeyCode[self.script.mutator.GetConfigurationString("bind_arma_zoom")]
+
+	-- setting up base settings here
+	self.settings.default_fieldofview = self.script.mutator.GetConfigurationInt("default_fieldofview")
+	self.settings.ban_co_useaimz = self:parseWeaponString(self.script.mutator.GetConfigurationString("turn_off_cao_usedefaultzoom"))
+
+	-- setting up aiming related settings here
+	self.settings.enable_co = self.script.mutator.GetConfigurationDropdown("enabled_canted_overhead")
+	
+	-- setting up the arma style zoom
+	self.settings.allow_arma_zoom = self.script.mutator.GetConfigurationBool("allow_arma_zoom")
+	self.settings.zoom_amount = self.script.mutator.GetConfigurationInt("zoom_amount")
+	self.settings.zoom_speed = self.script.mutator.GetConfigurationFloat("zoom_speed")
+
+	-- setting up sprinting animations
+	self.settings.allow_sprint_anims = self.script.mutator.GetConfigurationBool("allow_anim_sprinting")
+	self.settings.bobbing_frequency = self.script.mutator.GetConfigurationFloat("bobbing_frequency")
+
+	-- setting up walking (specifically more on bobbing lmao)
+	self.settings.allow_lean_lr = self.script.mutator.GetConfigurationBool("allow_lean_lr")
+	self.settings.amount_lr_lean = self.script.mutator.GetConfigurationFloat("amount_lr_lean")
+
+	-- setting up slow walking
+	self.settings.allow_slow_walk = self.script.mutator.GetConfigurationBool("allow_slow_walk")
+	self.settings.slow_walk_speed = self.script.mutator.GetConfigurationFloat("slow_walking_speed")
+
+	-- setting up deadzone
+	self.settings.allow_deadzone = self.script.mutator.GetConfigurationBool("allow_deadzone")
+	self.settings.allow_deadzone_aim = self.script.mutator.GetConfigurationBool("allow_deadzone_aim")
+
+	self.settings.deadzone_limit = self.script.mutator.GetConfigurationFloat("deadzone_limit")
+	self.settings.deadzone_aim_limit = self.script.mutator.GetConfigurationFloat("deadzone_aim_limit")
+
+	self.settings.deadzone_multiplier = self.script.mutator.GetConfigurationFloat("deadzone_multiplier")
+	self.settings.deadzone_aim_multiplier = self.script.mutator.GetConfigurationFloat("deadzone_aim_multiplier")
+
+	-- setting up sway
+	self.settings.allow_sway = self.script.mutator.GetConfigurationBool("allow_sway")
+	self.settings.sway_multiplier = self.script.mutator.GetConfigurationFloat("sway_multiplier")
+
+	-- setting up high/low ready
+	self.settings.enable_hl_ready = self.script.mutator.GetConfigurationDropdown("enabled_high_low_ready")
+
+	-- setting up weapon collisions
+	self.settings.allow_weapon_collision = self.script.mutator.GetConfigurationBool("allow_weapon_collision")
+	self.settings.lower_upon_collision = self.script.mutator.GetConfigurationBool("lower_upon_collision")
+	self.settings.weapon_upwards_collision = self.script.mutator.GetConfigurationInt("weapon_upwards_collision")
+	self.settings.weapon_rights_collision = self.script.mutator.GetConfigurationInt("weapon_rights_collision")
+
+	-- setting up offsets as a whole
+	self.offset.idle.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("idle_x_pos"),
+		self.script.mutator.GetConfigurationFloat("idle_y_pos"),
+		self.script.mutator.GetConfigurationFloat("idle_z_pos")
+	)
+
+	self.offset.idle.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("idle_x_rot"),
+		self.script.mutator.GetConfigurationFloat("idle_y_pos"),
+		self.script.mutator.GetConfigurationFloat("idle_z_pos")
+	)
+
+	self.offset.aim.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("aim_x_pos"),
+		self.script.mutator.GetConfigurationFloat("aim_y_pos"),
+		self.script.mutator.GetConfigurationFloat("aim_z_pos")
+	)
+
+	self.offset.aim.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("aim_x_rot"),
+		self.script.mutator.GetConfigurationFloat("aim_y_rot"),
+		self.script.mutator.GetConfigurationFloat("aim_z_rot")
+	)
+
+	self.offset.canted.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("canted_x_pos"),
+		self.script.mutator.GetConfigurationFloat("canted_y_pos"),
+		self.script.mutator.GetConfigurationFloat("canted_z_pos")
+	)
+
+	self.offset.canted.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("canted_x_rot"),
+		self.script.mutator.GetConfigurationFloat("canted_y_rot"),
+		self.script.mutator.GetConfigurationFloat("canted_z_rot")
+	)
+
+	self.offset.overhead.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("overhead_x_pos"),
+		self.script.mutator.GetConfigurationFloat("overhead_y_pos"),
+		self.script.mutator.GetConfigurationFloat("overhead_z_pos")
+	)
+
+	self.offset.overhead.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("overhead_x_rot"),
+		self.script.mutator.GetConfigurationFloat("overhead_y_rot"),
+		self.script.mutator.GetConfigurationFloat("overhead_z_rot")
+	)
+
+	self.offset.sprint.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("sprint_x_pos"),
+		self.script.mutator.GetConfigurationFloat("sprint_y_pos"),
+		self.script.mutator.GetConfigurationFloat("sprint_z_pos")
+	)
+
+	self.offset.sprint.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("sprint_x_rot"),
+		self.script.mutator.GetConfigurationFloat("sprint_y_rot"),
+		self.script.mutator.GetConfigurationFloat("sprint_z_rot")
+	)
+end
+
+--[[
 player actor spawning gets handled here
 ]]
 function main_wfm:onSpawn(actor)
@@ -421,6 +562,18 @@ function main_wfm:onSpawn(actor)
 	for i, weapon in pairs(weaponSlots) do
 		self:createNode(weapon)
 	end
+
+	-- reset shit
+	arma_enabled_aim = false
+	is_slow_walk = false
+
+	set_fov = 90
+	lerp_fov = 90
+
+	sec_aim_var = 0
+	pushback = 0
+
+	weapon_stance = 0
 end
 
 --[[
@@ -440,8 +593,8 @@ function main_wfm:slowWalk()
 			self.character.speedMultiplier = 1
 		end
 
-		if self.settings.is_slow_walk == true then
-			self.settings.is_slow_walk = false
+		if is_slow_walk == true then
+			is_slow_walk = false
 		end
 		return
 	end
@@ -451,9 +604,9 @@ function main_wfm:slowWalk()
 		return
 	end
 				
-	self.settings.is_slow_walk = not self.settings.is_slow_walk
+	is_slow_walk = not is_slow_walk
 	
-	if self.settings.is_slow_walk == true then
+	if is_slow_walk == true then
 		self.character.speedMultiplier = self.settings.slow_walk_speed
 	else
 		self.character.speedMultiplier = 1
@@ -496,112 +649,52 @@ end
 handles canted/overhead aimming
 ]]
 function main_wfm:specializedAiming()
+	if self.settings.enable_co == 0 then
+		return
+	end
+
 	if Input.GetKeyDown(overhead_key) then
-		if self.settings.sec_aim_var ==  1 then
-			self.settings.sec_aim_var = 0
+		if sec_aim_var ==  1 then
+			sec_aim_var = 0
 		else
-			self.settings.sec_aim_var = 1
+			sec_aim_var = 1
 		end
 	end
 	
 	if Input.GetKeyDown(canted_key) then
-		if self.settings.sec_aim_var == -1 then
-			self.settings.sec_aim_var = 0
+		if sec_aim_var == -1 then
+			sec_aim_var = 0
 		else
-			self.settings.sec_aim_var = -1
+			sec_aim_var = -1
 		end
 	end
 end
 
 --[[
-in it's name, i'm just fucking lazy
+handles high/low ready
 ]]
-function main_wfm:setConfiguration()
-	self.settings.default_fieldofview = self.script.mutator.GetConfigurationInt("default_fov")
-	self.settings.ban_ocz_aimming = self:parseWeaponString(self.script.mutator.GetConfigurationString("ban_ocz_aimming"))
+function main_wfm:weaponStances()
+	if self.settings.enable_hl_ready == 0 then
+		return
+	end
 
-	self.settings.can_slow_walk = self.script.mutator.GetConfigurationBool("can_slow_walk")
-	self.settings.slow_walk_speed = self.script.mutator.GetConfigurationFloat("slow_walk_speed")
-
-	self.settings.can_sway = self.script.mutator.GetConfigurationBool("can_sway")
-	self.settings.sway_multiplier = self.script.mutator.GetConfigurationFloat("sway_multiplier")
-
-	self.settings.can_deadzone = self.script.mutator.GetConfigurationBool("can_deadzone")
-	self.settings.can_deadzone_aim = self.script.mutator.GetConfigurationBool("can_deadzone_aim")
-	self.settings.deadzone_multiplier = self.script.mutator.GetConfigurationFloat("deadzone_multiplier")
-	self.settings.deadzone_limit = self.script.mutator.GetConfigurationFloat("deadzone_limit")
-	self.settings.aim_deadzone_limit = self.script.mutator.GetConfigurationFloat("aim_deadzone_limit")	
-
-	self.settings.arma_aim = self.script.mutator.GetConfigurationBool("arma_aim")
-	self.settings.arma_zoom_cutback = self.script.mutator.GetConfigurationInt("arma_zoom_cutback")
-	
-	self.offset.idle.pos = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_idle_pos"),
-		self.script.mutator.GetConfigurationFloat("y_idle_pos"),
-		self.script.mutator.GetConfigurationFloat("z_idle_pos")
-	)
-
-	self.offset.idle.rot = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_idle_rot"),
-		self.script.mutator.GetConfigurationFloat("y_idle_rot"),
-		self.script.mutator.GetConfigurationFloat("z_idle_rot")
-	)
-
-	self.offset.aim.pos = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_aim_pos"),
-		self.script.mutator.GetConfigurationFloat("y_aim_pos"),
-		self.script.mutator.GetConfigurationFloat("z_aim_pos")
-	)
-
-	self.offset.aim.rot = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_aim_rot"),
-		self.script.mutator.GetConfigurationFloat("y_aim_rot"),
-		self.script.mutator.GetConfigurationFloat("z_aim_rot")
-	)
-
-	self.offset.canted.pos = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_canted_pos"),
-		self.script.mutator.GetConfigurationFloat("y_canted_pos"),
-		self.script.mutator.GetConfigurationFloat("z_canted_pos")
-	)
-
-	self.offset.canted.rot = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_canted_rot"),
-		self.script.mutator.GetConfigurationFloat("y_canted_rot"),
-		self.script.mutator.GetConfigurationFloat("z_canted_rot")
-	)
-
-	self.offset.overhead.pos = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_overhead_pos"),
-		self.script.mutator.GetConfigurationFloat("y_overhead_pos"),
-		self.script.mutator.GetConfigurationFloat("z_overhead_pos")
-	)
-
-	self.offset.overhead.rot = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_overhead_rot"),
-		self.script.mutator.GetConfigurationFloat("y_overhead_rot"),
-		self.script.mutator.GetConfigurationFloat("z_overhead_rot")
-	)
-
-	self.offset.sprint.pos = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_sprint_pos"),
-		self.script.mutator.GetConfigurationFloat("y_sprint_pos"),
-		self.script.mutator.GetConfigurationFloat("z_sprint_pos")
-	)
-
-	self.offset.sprint.rot = Vector3(
-		self.script.mutator.GetConfigurationFloat("x_sprint_rot"),
-		self.script.mutator.GetConfigurationFloat("y_sprint_rot"),
-		self.script.mutator.GetConfigurationFloat("z_sprint_rot")
-	)
+	if Input.GetKeyDown(highready_key) and self.settings.enable_hl_ready ~= 1 then
+		if weapon_stance == 1 then
+			weapon_stance = 0
+		else
+			weapon_stance = 1
+		end
+	elseif Input.GetKeyDown(lowready_key) and self.settings.enable_hl_ready ~= 2 then
+		if weapon_stance == -1 then
+			weapon_stance = 0
+		else
+			weapon_stance = -1
+		end
+	end
 end
 
 --[[
-handles viewmodel offsets being updated n shit
-
-DEVELOPER NOTE: some of the code here was AI generated.... when i was working on KMCS... so yeah the code being used is pretty old, but still functional
-back then i used AI to essentially make certain things that i didnt know how to do, but for this project, i'll strictly be using AI to look through documentation,
-even then AI usage is still strict, i dont blame you if you either dont believe me or not like me for my AI use i understand, but rest assure, i'll do my best
+handles viewmodel offsets being updated
 ]]
 function main_wfm:viewmodelOffsets()
 	local actWeap = self.character.activeWeapon
@@ -613,19 +706,52 @@ function main_wfm:viewmodelOffsets()
 	local condzRot = Euler(Vector3(self.offset.deadzone.x, self.offset.deadzone.y, 0))
 	local consyRot = Euler(Vector3(-self.offset.sway.y, self.offset.sway.x, -self.offset.sway.x))
 
+	-- handling pushback
+	-- yeah it's pretty large since it's meant to have support for customizable gun tuck
+	local upVecRot = Vector3(0, 0, 0)
+	local rightVecRot = Vector3(0, 0, 0)
+
+	local xpBack = 0
+	local ypBack = 0
+
+	if self.settings.weapon_upwards_collision == 1 then
+		upVecRot = Vector3(0, pushback * 130, 0)
+		xpBack = -pushback
+	elseif self.settings.weapon_upwards_collision == -1 then
+		upVecRot = Vector3(0, -pushback * 130, 0)
+		xpBack = -pushback
+	end
+
+	if self.settings.weapon_rights_collision == 1 then
+		rightVecRot = Vector3(pushback * 130, 0, 0)
+		ypBack = pushback * 2
+	elseif self.settings.weapon_rights_collision == -1 then
+		rightVecRot = Vector3(-pushback * 130, 0, 0)
+		ypBack = -pushback / 2
+	end
+
+	if self.settings.weapon_rights_collision == 0 and self.settings.weapon_upwards_collision == 0 and self.settings.lower_upon_collision == true then
+		ypBack = pushback / 5
+	end
+
+	local upRot = Euler(upVecRot)
+	local rightRot = Euler(rightVecRot)
+
+	local zpBack = pushback / 5
+	local weaponPushBackPos = Vector3(xpBack, ypBack, zpBack)
+	
 	-- position
-	local weaponPushBackPos = Vector3(0, self.settings.pushback / 5, self.settings.pushback)
 	local sprintPos = self.offset.sprint.current.pos
 	local bobbingPos = self.offset.bobbing.current.pos
 	local highLowReadyPos = self.offset.high_low_ready.current.pos
-
+	
 	-- rotation
 	local sprintRot = Euler(self.offset.sprint.current.rot)
 	local bobbingRot = Euler(self.offset.bobbing.current.rot)
 	local highLowReadyRot = Euler(self.offset.high_low_ready.current.rot)
 
 	local pos = self.offset.curPos + weaponPushBackPos + sprintPos + bobbingPos + highLowReadyPos
-	local rot = conRot * sprintRot * bobbingRot * highLowReadyRot
+	local rot = conRot * sprintRot * bobbingRot * highLowReadyRot * upRot * rightRot
 	local dzRot = condzRot
 
 	local lerpPos = Vector3.Lerp(handleNode.transform.localPosition, pos, Time.deltaTime * 12)
@@ -637,7 +763,6 @@ function main_wfm:viewmodelOffsets()
 	handleNode.transform.localRotation = lerpRot
 end
 
--- CHECK FUNCTIONS
 --[[
 restrictions for slow walking
 ]]
@@ -688,18 +813,8 @@ function main_wfm:checkVehicle()
 end
 
 --[[
-literally copied and pasted from KMCs lol
-]]
-function main_wfm:findStringInTable(name, tbl)
-	for i = 1, #tbl do
-		print(i)
-	end
-   
-	return false
-end
-
---[[
-like i said copied and pasted i forgot, ts was definitely ai cuz aint no way i did this
+seperating a names within a list with a ;
+NOTE: like i said copied and pasted i forgot, ts was definitely ai cuz aint no way i did this
 ]]
 function main_wfm:parseWeaponString(weaponString)
     local weapons = {}
