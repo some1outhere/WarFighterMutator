@@ -1,5 +1,5 @@
 -- Register the behaviour
--- for future self, replace the shit inside behaviour with the file name, faggot.
+-- for future self, replace the shit inside behaviour with the file name, idiota.
 behaviour("main_wfm")
 
 local hitCache = {}
