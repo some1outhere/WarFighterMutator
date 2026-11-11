@@ -485,3 +485,50 @@ MonoBehaviour:
           - <color=#0000ff>EAGLE</color>
           - <color=#ff0000>RAVEN</color>
           - <color=#00ff00>NONE</color>
+  - name: WFM - Particle effects
+    description: brought to you by the unity's particle system
+    menuImage: {fileID: 2800000, guid: ef09fcebe6028a54287610683db81c7c, type: 3}
+    mutatorPrefab: {fileID: 3608628992259744486, guid: 492d2290d9867c745a3fdf5aa16bf98e, type: 3}
+    configuration:
+      labels: []
+      integers:
+      - id: crying_health
+        displayName: Health amount for Wounded cries, 0 = off
+        orderPriority: 1
+        value: 30
+      - id: heavily_wounded
+        displayName: Health amount for Heavily Wounded cries, 0 = off
+        orderPriority: 2
+        value: 20
+      floats:
+      - id: gear_volume
+        displayName: Volume of Gear movement
+        orderPriority: 4
+        value: 1
+      ranges: []
+      strings: []
+      bools:
+      - id: do_gear_movement
+        displayName: Allow gear movement (PLAYER ONLY)
+        orderPriority: 3
+        value: 1
+      dropdowns:
+      - id: restriction_team
+        displayName: Which team has character moddifications
+        orderPriority: 5
+        value:
+          index: 0
+          labels:
+          - <color=#fbff00>BOTH</color>
+          - <color=#0000ff>EAGLE</color>
+          - <color=#ff0000>RAVEN</color>
+      - id: team_para_allowance
+        displayName: which Team is allowed to use the Parachutes
+        orderPriority: 6
+        value:
+          index: 0
+          labels:
+          - <color=#fbff00>BOTH</color>
+          - <color=#0000ff>EAGLE</color>
+          - <color=#ff0000>RAVEN</color>
+          - <color=#00ff00>NONE</color>

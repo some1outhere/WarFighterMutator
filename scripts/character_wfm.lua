@@ -89,25 +89,9 @@ end
 sets up an actor so it could play sounds n shit
 ]]
 function character_wfm:enable(actor, audioNode)
-	local gear_foley = nil
-	local wounded = nil
-	local heavily_wounded = nil
-
-	-- just getting the shit
-	for i = 0, audioNode.transform.childCount - 1 do
-		local child = audioNode.transform.GetChild(i)
-		local childObj = child.gameObject
-
-		if childObj.name == "gear_foley" then
-			gear_foley = childObj
-		elseif childObj.name == "wounded" then
-			wounded = childObj
-		elseif childObj.name == "heavily_wounded" then
-			heavily_wounded = childObj
-		end
-
-		--print(childObj.name)
-	end
+	local gear_foley = audioNode.transform.GetChild(0).gameObject
+	local wounded = audioNode.transform.GetChild(1).gameObject
+	local heavily_wounded = audioNode.transform.GetChild(2).gameObject
 
 	local gear_foley_soundBank = gear_foley.GetComponent(SoundBank)
 	local wounded_soundBank = wounded.GetComponent(SoundBank)
@@ -168,7 +152,7 @@ function character_wfm:enable(actor, audioNode)
 
 	-- movement sounds
 	-- this is only for player due to some performance issues that im quite inexperienced to fix
-	self.script:StartCoroutine(function()
+	self.script.StartCoroutine(function()
 		if self.settings.doGearMovement == false then
 			return
 		end
@@ -189,7 +173,7 @@ function character_wfm:enable(actor, audioNode)
 	end)
 
 	-- health sounds
-	self.script:StartCoroutine(function()
+	self.script.StartCoroutine(function()
 		while true do
 			if actor.isDead == true then
 				stopBitching()
