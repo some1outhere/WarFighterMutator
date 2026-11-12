@@ -26,24 +26,25 @@ function impact_wfm:projectTile(proj)
 				local hit = Physics.Raycast(ray, 6, target)
 
 				if hit then
-					print("HIT")
-
 					if self.cache.effects[self.cache.count] == nil then
-						self.cache.count = 0
+						self.cache.count = 1
 					end
-					self.cache.count = self.cache.count + 1
-					print(self.cache.count)
 
 					local effect = self.cache.effects[self.cache.count]
-					local actualPlayerEffect = effect.transform.GetChild(0).gameObject
+					local dust = effect.transform.GetChild(0).gameObject
+					local dust2 = effect.transform.GetChild(1).gameObject
+
+					if effect.transform.parent == nil then
+						effect.transform.parent = hit.transform
+					end
 					
-					actualPlayerEffect.transform.parent = hit.transform
-					actualPlayerEffect.transform.position = hit.point
-					actualPlayerEffect.transform.rotation = Quaternion.LookRotation(hit.normal, Vector3.up)
+					effect.transform.position = hit.point
+					effect.transform.rotation = Quaternion.LookRotation(hit.normal, Vector3.up)
 
-					actualPlayerEffect.GetComponent(ParticleSystem).Stop()
-					actualPlayerEffect.GetComponent(ParticleSystem).Play()
+					dust.GetComponent(ParticleSystem).Play()
+					dust2.GetComponent(ParticleSystem).Play()
 
+					self.cache.count = self.cache.count + 1
 					break
 				end
 			else
