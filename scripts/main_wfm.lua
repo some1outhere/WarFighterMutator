@@ -520,6 +520,30 @@ function main_wfm:setConfiguration()
 		self.script.mutator.GetConfigurationFloat("sprint_y_rot"),
 		self.script.mutator.GetConfigurationFloat("sprint_z_rot")
 	)
+
+	self.offset.highready.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("highready_x_pos"),
+		self.script.mutator.GetConfigurationFloat("highready_y_pos"),
+		self.script.mutator.GetConfigurationFloat("highready_z_pos")
+	)
+
+	self.offset.highready.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("highready_x_rot"),
+		self.script.mutator.GetConfigurationFloat("highready_y_rot"),
+		self.script.mutator.GetConfigurationFloat("highready_z_rot")
+	)
+
+	self.offset.lowready.pos = Vector3(
+		self.script.mutator.GetConfigurationFloat("lowready_x_pos"),
+		self.script.mutator.GetConfigurationFloat("lowready_y_pos"),
+		self.script.mutator.GetConfigurationFloat("lowready_z_pos")
+	)
+
+	self.offset.lowready.rot = Vector3(
+		self.script.mutator.GetConfigurationFloat("lowready_x_rot"),
+		self.script.mutator.GetConfigurationFloat("lowready_y_rot"),
+		self.script.mutator.GetConfigurationFloat("lowready_z_rot")
+	)
 end
 
 -- player actor spawning gets handled here
