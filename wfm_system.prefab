@@ -417,6 +417,11 @@ MonoBehaviour:
         displayName: LOWER UPON COLLISION, UP/RIGHT MUST BE 0
         orderPriority: 92
         value: 1
+      - id: allow_always_checking
+        displayName: ALLOW WHETHER IT SHOULD ALWAYS UPDATE TO CHECK WHETHER A NEW
+          GUN IS ADDED, DISABLE IF THERES NO WEAPONS GETTING ADDED
+        orderPriority: 0
+        value: 1
       dropdowns:
       - id: enabled_canted_overhead
         displayName: ENABLE CANTED/OVERHEAD

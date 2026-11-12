@@ -26,11 +26,14 @@ local lowready_key = KeyCode.K
 local arma_zoom_key = KeyCode.T
 local slowwalk_key = KeyCode.LeftAlt
 
+local allow_always_checking = false
+
 -- Called once when the Ravenscript component is instantiated.
 function main_wfm:Start()
 	-- set stuff
 	self.enabledWFM = true
 	self:setupBaseSettings()
+	allow_always_checking = self.script.mutator.GetConfigurationBool("allow_always_checking")
 
 	-- listen for on spawn in order to reset values affected by previous battles
 	GameEvents.onActorSpawn.AddListener(self, "onSpawn")
@@ -179,6 +182,13 @@ function main_wfm:LateUpdate()
 		return
 	end
 
+	if allow_always_checking == true then
+		local checkParent = actWeap.transform.parent.transform
+		if checkParent.name ~= "Weapon_Node_3D" then
+			self:createWeaponNode(actWeap)
+		end
+	end
+	
 	local playerVelocity = self.character.velocity.magnitude
 	local getMouse = Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"))
 
