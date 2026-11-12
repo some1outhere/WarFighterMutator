@@ -266,22 +266,22 @@ MonoBehaviour:
         displayName: <color=#0000ff>Z</color>
         orderPriority: 71
         value: 2
-      - id: highready_x_idle
+      - id: highready_x_pos
         displayName: <color=#ff0000>X</color>
         orderPriority: 73
         value: 0
-      - id: highready_y_idle
+      - id: highready_y_pos
         displayName: <color=#00ff00>Y</color>
         orderPriority: 74
-        value: 0
-      - id: highready_z_idle
+        value: -0.45
+      - id: highready_z_pos
         displayName: <color=#0000ff>Z</color>
         orderPriority: 75
         value: 0
       - id: highready_x_rot
         displayName: <color=#ff0000>X</color>
         orderPriority: 77
-        value: 0
+        value: -45
       - id: highready_y_rot
         displayName: <color=#00ff00>Y</color>
         orderPriority: 78
@@ -305,7 +305,7 @@ MonoBehaviour:
       - id: lowready_x_rot
         displayName: <color=#ff0000>X</color>
         orderPriority: 85
-        value: 0
+        value: 25
       - id: lowready_y_rot
         displayName: <color=#00ff00>Y</color>
         orderPriority: 86
@@ -367,11 +367,11 @@ MonoBehaviour:
       - id: bind_highready
         displayName: BIND HIGH READY
         orderPriority: 96
-        value: O
+        value: UpArrow
       - id: bind_lowready
         displayName: BIND LOWER READY
         orderPriority: 97
-        value: K
+        value: DownArrow
       - id: bind_slowwalk
         displayName: BIND SLOW WALK
         orderPriority: 98
