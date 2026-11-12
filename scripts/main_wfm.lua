@@ -575,14 +575,6 @@ function main_wfm:slowWalk()
 end
 
 function main_wfm:createWeaponNode(weap)
-	--[[
-	if createdWeapCache[test.transform.name] ~= nil then
-		return
-	end
-	]]
-	--print("couldn't find weapon handler node")
-	--print("creating")
-
 	-- creating the node
 	local deadzoneNode = GameObject.instantiate(self.targets.handle, weap.transform.parent.transform)
 	local handleNode = GameObject.instantiate(self.targets.handle, deadzoneNode.transform)
