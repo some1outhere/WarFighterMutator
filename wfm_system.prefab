@@ -269,7 +269,7 @@ MonoBehaviour:
       - id: highready_x_pos
         displayName: <color=#ff0000>X</color>
         orderPriority: 73
-        value: 0
+        value: 0.15
       - id: highready_y_pos
         displayName: <color=#00ff00>Y</color>
         orderPriority: 74
@@ -281,7 +281,7 @@ MonoBehaviour:
       - id: highready_x_rot
         displayName: <color=#ff0000>X</color>
         orderPriority: 77
-        value: -45
+        value: -62
       - id: highready_y_rot
         displayName: <color=#00ff00>Y</color>
         orderPriority: 78
@@ -293,7 +293,7 @@ MonoBehaviour:
       - id: lowready_x_pos
         displayName: <color=#ff0000>X</color>
         orderPriority: 81
-        value: 0
+        value: 0.15
       - id: lowready_y_pos
         displayName: <color=#00ff00>Y</color>
         orderPriority: 82
@@ -305,7 +305,7 @@ MonoBehaviour:
       - id: lowready_x_rot
         displayName: <color=#ff0000>X</color>
         orderPriority: 85
-        value: 25
+        value: 15
       - id: lowready_y_rot
         displayName: <color=#00ff00>Y</color>
         orderPriority: 86
