@@ -212,7 +212,7 @@ function main_wfm:LateUpdate()
 
 		if self.character.isSprinting == true then
 			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
-			self.offset.bobbing.current.rot = Vector3(0, bobX * 2, lateralSpeed)
+			self.offset.bobbing.current.rot = Vector3(0, bobX, lateralSpeed)
 		else
 			self.offset.bobbing.current.pos = Vector3(0, 0, 0)
 			self.offset.bobbing.current.rot = Vector3(0, 0, lateralSpeed)
