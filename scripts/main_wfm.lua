@@ -201,7 +201,7 @@ function main_wfm:LateUpdate()
 	end
 
 	if playerVelocity > 0 then -- bobbing
-		local bobX = sin(Time.time * 12) * playerVelocity
+		local bobX = sin(Time.time * self.settings.bobbing_frequency) * playerVelocity
 		local vel = Player.actor.velocity
 		local right = PlayerCamera.activeCamera.transform.right
 		local lateralSpeed = 0
