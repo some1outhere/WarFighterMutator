@@ -469,8 +469,8 @@ function main_wfm:setConfiguration()
 
 	self.offset.idle.rot = Vector3(
 		self.script.mutator.GetConfigurationFloat("idle_x_rot"),
-		self.script.mutator.GetConfigurationFloat("idle_y_pos"),
-		self.script.mutator.GetConfigurationFloat("idle_z_pos")
+		self.script.mutator.GetConfigurationFloat("idle_y_rot"),
+		self.script.mutator.GetConfigurationFloat("idle_z_rot")
 	)
 
 	self.offset.aim.pos = Vector3(
